@@ -1,4 +1,6 @@
 import Link from "next/link";
+import ContinueWatchingTracker from "@/components/continue-watching/ContinueWatchingTracker";
+import WatchlistButton from "@/components/watchlist/WatchlistButton";
 
 type Props = {
   params: Promise<{
@@ -8,6 +10,7 @@ type Props = {
 
 const API = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const IMG = "https://image.tmdb.org/t/p/original";
+const POSTER = "https://image.tmdb.org/t/p/w500";
 
 async function getMovie(id: string) {
   const res = await fetch(
@@ -33,6 +36,8 @@ export default async function MoviePage({ params }: Props) {
   return (
     <main className="min-h-screen bg-[#050505] text-white">
 
+      <ContinueWatchingTracker movie={movie} />
+
       <div className="relative h-[70vh]">
 
         <img
@@ -43,13 +48,13 @@ export default async function MoviePage({ params }: Props) {
 
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/50 to-black/20" />
 
-        <div className="relative mx-auto flex h-full max-w-7xl items-end px-6 pb-16">
+        <div className="relative mx-auto flex h-full max-w-7xl items-end justify-between px-6 pb-16">
 
           <div>
 
             <Link
               href="/browse"
-              className="mb-6 inline-block rounded-full border border-white/20 bg-white/10 px-5 py-2 backdrop-blur-xl hover:bg-white/20 transition"
+              className="mb-6 inline-block rounded-full border border-white/20 bg-white/10 px-5 py-2 backdrop-blur-xl transition hover:bg-white/20"
             >
               ← Back
             </Link>
@@ -69,6 +74,21 @@ export default async function MoviePage({ params }: Props) {
             </div>
 
           </div>
+
+          <WatchlistButton
+            movie={{
+              id: movie.id,
+              title: movie.title,
+              poster: movie.poster_path
+                ? POSTER + movie.poster_path
+                : "",
+              backdrop: movie.backdrop_path
+                ? IMG + movie.backdrop_path
+                : "",
+              year: (movie.release_date || "").slice(0, 4),
+              rating: movie.vote_average,
+            }}
+          />
 
         </div>
 

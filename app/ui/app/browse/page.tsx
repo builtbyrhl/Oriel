@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import GlassNavbar from "@/components/layout/GlassNavbar";
 import MovieRow from "@/components/movies/MovieRow";
+import ContinueWatchingRow from "@/components/continue-watching/ContinueWatchingRow";
 import type { Movie } from "@/components/movies/MovieCard";
 
 const API = process.env.NEXT_PUBLIC_TMDB_API_KEY;
@@ -25,8 +26,8 @@ export default function BrowsePage() {
           id: m.id,
           title: m.title,
           genre: "Movie",
-          year: (m.release_date || "").slice(0,4),
-          image: `https://image.tmdb.org/t/p/w780${m.backdrop_path || m.poster_path}`
+          year: (m.release_date || "").slice(0, 4),
+          image: `https://image.tmdb.org/t/p/w780${m.backdrop_path || m.poster_path}`,
         }));
 
         setFeatured(movies[0]);
@@ -43,7 +44,7 @@ export default function BrowsePage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#050505] text-white flex items-center justify-center">
+      <main className="flex min-h-screen items-center justify-center bg-[#050505] text-white">
         Loading...
       </main>
     );
@@ -51,7 +52,7 @@ export default function BrowsePage() {
 
   if (!featured) {
     return (
-      <main className="min-h-screen bg-[#050505] text-white flex items-center justify-center">
+      <main className="flex min-h-screen items-center justify-center bg-[#050505] text-white">
         Failed to load movies.
       </main>
     );
@@ -59,23 +60,19 @@ export default function BrowsePage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
-
       <GlassNavbar />
 
       <section className="relative h-[70vh] overflow-hidden">
-
         <img
           src={featured.image}
           alt={featured.title}
           className="absolute inset-0 h-full w-full object-cover"
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/50 to-black/10"/>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/50 to-black/10" />
 
         <div className="relative flex h-full items-end">
-
           <div className="mx-auto w-full max-w-7xl px-6 pb-16">
-
             <p className="mb-2 uppercase tracking-[0.3em] text-white/70">
               Featured
             </p>
@@ -88,17 +85,16 @@ export default function BrowsePage() {
               Cinema. Beautifully curated.
             </p>
 
-            <button className="mt-8 rounded-full border border-white/20 bg-white/10 px-8 py-3 backdrop-blur-xl hover:bg-white/20 transition">
+            <button className="mt-8 rounded-full border border-white/20 bg-white/10 px-8 py-3 backdrop-blur-xl transition hover:bg-white/20">
               Continue
             </button>
-
           </div>
-
         </div>
-
       </section>
 
       <div className="mx-auto max-w-7xl px-6 py-10">
+
+        <ContinueWatchingRow />
 
         <MovieRow
           title="Trending Now"
@@ -116,7 +112,6 @@ export default function BrowsePage() {
         />
 
       </div>
-
     </main>
   );
 }

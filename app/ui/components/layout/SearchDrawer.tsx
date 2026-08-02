@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Search, X, Plus } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import WatchlistButton from "@/components/watchlist/WatchlistButton";
 
 type Movie = {
   id: number;
   title: string;
   poster_path: string;
+  backdrop_path?: string;
   release_date: string;
+  vote_average: number;
 };
 
 type Props = {
@@ -17,7 +20,7 @@ type Props = {
 };
 
 const API = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-const IMG = "https://image.tmdb.org/t/p/w185";
+const IMG = "https://image.tmdb.org/t/p/w500";
 
 export default function SearchDrawer({
   open,
@@ -80,7 +83,6 @@ export default function SearchDrawer({
         <div className="p-6">
 
           <div className="flex items-center rounded-full bg-white/10 px-4 py-3">
-
             <Search size={18} />
 
             <input
@@ -89,7 +91,6 @@ export default function SearchDrawer({
               placeholder="Search any movie..."
               className="ml-3 w-full bg-transparent outline-none"
             />
-
           </div>
 
           {loading && (
@@ -107,62 +108,62 @@ export default function SearchDrawer({
             <div className="mt-6 space-y-4">
 
               {movies.map((movie)=>(
-                <Link
+                <div
                   key={movie.id}
-                  href={`/movie/${movie.id}`}
-                  onClick={onClose}
-                  className="block"
+                  className="flex items-center justify-between rounded-2xl bg-white/5 p-2 transition hover:bg-white/10"
                 >
-                  <div
-                    className="flex items-center justify-between rounded-2xl bg-white/5 p-2 transition hover:bg-white/10"
+
+                  <Link
+                    href={`/movie/${movie.id}`}
+                    onClick={onClose}
+                    className="flex flex-1 items-center gap-3"
                   >
 
-                    <div className="flex items-center gap-3">
+                    <img
+                      src={
+                        movie.poster_path
+                          ? IMG + movie.poster_path
+                          : "https://placehold.co/80x120"
+                      }
+                      className="h-20 w-14 rounded-lg object-cover"
+                      alt={movie.title}
+                    />
 
-                      <img
-                        src={
-                          movie.poster_path
-                            ? IMG + movie.poster_path
-                            : "https://placehold.co/80x120"
-                        }
-                        className="h-20 w-14 rounded-lg object-cover"
-                        alt={movie.title}
-                      />
+                    <div>
+                      <h3 className="font-medium">
+                        {movie.title}
+                      </h3>
 
-                      <div>
-
-                        <h3 className="font-medium">
-                          {movie.title}
-                        </h3>
-
-                        <p className="text-sm text-white/50">
-                          {(movie.release_date || "").slice(0,4)}
-                        </p>
-
-                      </div>
-
+                      <p className="text-sm text-white/50">
+                        {(movie.release_date || "").slice(0,4)}
+                      </p>
                     </div>
 
-                    <div className="flex gap-2">
+                  </Link>
 
-                      <button
-                        onClick={(e)=>e.preventDefault()}
-                        className="rounded-full bg-white/10 p-2 transition hover:bg-white/20"
-                      >
-                        ○
-                      </button>
-
-                      <button
-                        onClick={(e)=>e.preventDefault()}
-                        className="rounded-full bg-white/10 p-2 transition hover:bg-white/20"
-                      >
-                        <Plus size={16}/>
-                      </button>
-
-                    </div>
-
+                  <div
+                    onClick={(e)=>{
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
+                    <WatchlistButton
+                      movie={{
+                        id: movie.id,
+                        title: movie.title,
+                        poster: movie.poster_path
+                          ? IMG + movie.poster_path
+                          : "",
+                        backdrop: movie.backdrop_path
+                          ? IMG + movie.backdrop_path
+                          : "",
+                        year: (movie.release_date || "").slice(0,4),
+                        rating: movie.vote_average,
+                      }}
+                    />
                   </div>
-                </Link>
+
+                </div>
               ))}
 
             </div>

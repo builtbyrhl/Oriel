@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Plus } from "lucide-react";
+import WatchlistButton from "@/components/watchlist/WatchlistButton";
 
 export type Movie = {
   id: number;
@@ -45,14 +45,26 @@ export default function MovieCard({ movie }: Props) {
           </p>
         </div>
 
-        <button
-          onClick={(e) => e.preventDefault()}
-          className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-xl"
+        <div
+          className="absolute right-4 top-4"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
         >
-          <Plus size={20} />
-        </button>
+          <WatchlistButton
+            movie={{
+              id: movie.id,
+              title: movie.title,
+              poster: movie.image,
+              backdrop: movie.image,
+              year: movie.year,
+              rating: 0,
+            }}
+          />
+        </div>
+
       </motion.div>
     </Link>
   );
 }
-
