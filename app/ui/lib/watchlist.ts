@@ -26,9 +26,7 @@ export function isInWatchlist(id: number) {
 export function toggleWatchlist(movie: WatchlistMovie) {
   const list = getWatchlist();
 
-  const exists = list.find((m) => m.id === movie.id);
-
-  if (exists) {
+  if (isInWatchlist(movie.id)) {
     localStorage.setItem(
       KEY,
       JSON.stringify(list.filter((m) => m.id !== movie.id))
@@ -39,4 +37,13 @@ export function toggleWatchlist(movie: WatchlistMovie) {
       JSON.stringify([movie, ...list])
     );
   }
+}
+
+export function removeFromWatchlist(id: number) {
+  const list = getWatchlist();
+
+  localStorage.setItem(
+    KEY,
+    JSON.stringify(list.filter((m) => m.id !== id))
+  );
 }
