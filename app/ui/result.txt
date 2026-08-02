@@ -1,0 +1,4 @@
+./lib/movies.ts:import { tmdbFetch } from "./tmdb";
+./lib/movies.ts:  const data = await tmdbFetch("/trending/movie/week");
+./lib/movies.ts:  const data = await tmdbFetch("/movie/popular");
+./lib/movies.ts:  const data = await tmdbFetch("/movie/top_rated");
