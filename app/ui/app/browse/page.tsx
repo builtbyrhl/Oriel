@@ -62,7 +62,7 @@ export default function BrowsePage() {
     <main className="min-h-screen bg-[#050505] text-white">
       <GlassNavbar />
 
-      <section className="relative h-[70vh] overflow-hidden">
+      <section className="relative h-[55vh] md:h-[70vh] overflow-hidden">
         <img
           src={featured.image}
           alt={featured.title}
@@ -72,12 +72,12 @@ export default function BrowsePage() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/50 to-black/10" />
 
         <div className="relative flex h-full items-end">
-          <div className="mx-auto w-full max-w-7xl px-6 pb-16">
+          <div className="mx-auto w-full max-w-7xl px-6 pb-10 md:pb-16">
             <p className="mb-2 uppercase tracking-[0.3em] text-white/70">
               Featured
             </p>
 
-            <h1 className="text-5xl font-light md:text-7xl">
+            <h1 className="text-4xl font-light md:text-7xl">
               {featured.title}
             </h1>
 
@@ -85,7 +85,7 @@ export default function BrowsePage() {
               Cinema. Beautifully curated.
             </p>
 
-            <button className="mt-8 rounded-full border border-white/20 bg-white/10 px-8 py-3 backdrop-blur-xl transition hover:bg-white/20">
+            <button className="mt-6 md:mt-8 rounded-full border border-white/20 bg-white/10 px-8 py-3 backdrop-blur-xl transition hover:bg-white/20">
               Continue
             </button>
           </div>

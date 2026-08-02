@@ -20,16 +20,16 @@ export default function MovieCard({ movie }: Props) {
   return (
     <Link href={`/movie/${movie.id}`} className="block">
       <motion.div
-        whileHover={{ y: -6 }}
+        whileHover={{ y: -10, scale: 1.02 }}
         whileTap={{ scale: 0.97 }}
-        transition={{ duration: 0.25 }}
-        className="group relative overflow-hidden rounded-[28px] bg-neutral-900 cursor-pointer"
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="group relative overflow-hidden rounded-[28px] bg-neutral-900 cursor-pointer shadow-xl transition-shadow duration-300 hover:shadow-white/10"
       >
         <div className="aspect-[2/3] overflow-hidden">
           <img
             src={movie.image}
             alt={movie.title}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-115"
           />
         </div>
 

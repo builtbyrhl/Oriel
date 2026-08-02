@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Search, Trash2 } from "lucide-react";
 import GlassNavbar from "@/components/layout/GlassNavbar";
+import CollectionFilters from "@/components/collection/CollectionFilters";
 import {
   getWatchlist,
   removeFromWatchlist,
@@ -52,17 +53,17 @@ export default function CollectionPage() {
       <GlassNavbar />
 
       <section className="border-b border-white/10">
-        <div className="mx-auto max-w-7xl px-6 pt-28 pb-12">
+        <div className="mx-auto max-w-7xl px-6 pt-24 md:pt-28 pb-12">
 
           <p className="uppercase tracking-[0.35em] text-white/50">
             Library
           </p>
 
-          <h1 className="mt-4 text-6xl font-light">
+          <h1 className="mt-4 text-4xl md:text-6xl font-light">
             Collection
           </h1>
 
-          <p className="mt-5 max-w-2xl text-lg text-white/60">
+          <p className="mt-5 max-w-2xl text-base md:text-lg text-white/60">
             Every movie you've chosen to keep.
           </p>
 
@@ -83,15 +84,10 @@ export default function CollectionPage() {
               />
             </div>
 
-            <select
+            <CollectionFilters
               value={sort}
-              onChange={(e)=>setSort(e.target.value)}
-              className="rounded-full bg-white/10 px-5 py-3 outline-none"
-            >
-              <option value="recent">Recently Added</option>
-              <option value="name">A-Z</option>
-              <option value="rating">Highest Rated</option>
-            </select>
+              onChange={setSort}
+            />
 
           </div>
 
@@ -102,17 +98,27 @@ export default function CollectionPage() {
 
         {filtered.length === 0 ? (
 
-          <div className="py-24 text-center">
+          <div className="mx-auto max-w-xl py-28 text-center">
 
-            <div className="text-7xl">❤️</div>
+            <div className="text-8xl">
+              ❤️
+            </div>
 
-            <h2 className="mt-6 text-3xl font-light">
-              Your collection is empty
+            <h2 className="mt-8 text-4xl font-light">
+              Your Collection Awaits
             </h2>
 
-            <p className="mt-4 text-white/50">
-              Save movies with the + button to see them here.
+            <p className="mx-auto mt-5 max-w-md text-base md:text-lg leading-8 text-white/55">
+              Every unforgettable movie starts with a single save.
+              Discover films you'll want to keep forever.
             </p>
+
+            <Link
+              href="/browse"
+              className="mt-10 inline-flex rounded-full border border-white/10 bg-white/10 px-8 py-4 backdrop-blur-xl transition hover:bg-white/20"
+            >
+              Browse Movies
+            </Link>
 
           </div>
 
@@ -142,7 +148,7 @@ export default function CollectionPage() {
 
                   <div>
 
-                    <h3 className="truncate text-lg">
+                    <h3 className="truncate text-base md:text-lg">
                       {movie.title}
                     </h3>
 
