@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { multiSearch } from "@/lib/tmdb";
 import { Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import WatchlistButton from "@/components/watchlist/WatchlistButton";
+import SearchResults from "@/components/search/SearchResults";
 
 type Movie = {
   id: number;
@@ -22,12 +24,10 @@ type Props = {
 const API = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const IMG = "https://image.tmdb.org/t/p/w500";
 
-export default function SearchDrawer({
-  open,
-  onClose,
-}: Props) {
+export default function SearchDrawer({ open, onClose }: Props) {
   const [query, setQuery] = useState("");
   const [movies, setMovies] = useState<Movie[]>([]);
+const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -40,12 +40,9 @@ export default function SearchDrawer({
       setLoading(true);
 
       try {
-        const res = await fetch(
-          `https://api.themoviedb.org/3/search/movie?api_key=${API}&query=${encodeURIComponent(query)}`
-        );
-
-        const data = await res.json();
-        setMovies(data.results || []);
+        const data = await multiSearch(query);
+        setResults(data.results || []);
+        setMovies([]);
       } catch {
         setMovies([]);
       }
@@ -66,22 +63,19 @@ export default function SearchDrawer({
       />
 
       <aside
-        className={`fixed right-0 top-0 z-50 h-full w-full max-w-md border-l border-white/10 bg-[#090909] transition-transform duration-300 ${
+        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-white/10 bg-[#090909] transition-transform duration-300 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between border-b border-white/10 p-6">
-          <h2 className="text-xl font-light">
-            Search
-          </h2>
+          <h2 className="text-xl font-light">Search</h2>
 
           <button onClick={onClose}>
             <X />
           </button>
         </div>
 
-        <div className="p-6">
-
+        <div className="flex-1 overflow-y-auto p-6">
           <div className="flex items-center rounded-full bg-white/10 px-4 py-3">
             <Search size={18} />
 
@@ -93,81 +87,11 @@ export default function SearchDrawer({
             />
           </div>
 
-          {loading && (
-            <div className="mt-6 space-y-4">
-              {[1,2,3].map((i)=>(
-                <div
-                  key={i}
-                  className="h-24 animate-pulse rounded-2xl bg-white/10"
-                />
-              ))}
-            </div>
-          )}
-
-          {!loading && (
-            <div className="mt-6 space-y-4">
-
-              {movies.map((movie)=>(
-                <div
-                  key={movie.id}
-                  className="flex items-center justify-between rounded-2xl bg-white/5 p-2 transition hover:bg-white/10"
-                >
-
-                  <Link
-                    href={`/movie/${movie.id}`}
-                    onClick={onClose}
-                    className="flex flex-1 items-center gap-3"
-                  >
-
-                    <img
-                      src={
-                        movie.poster_path
-                          ? IMG + movie.poster_path
-                          : "https://placehold.co/80x120"
-                      }
-                      className="h-20 w-14 rounded-lg object-cover"
-                      alt={movie.title}
-                    />
-
-                    <div>
-                      <h3 className="font-medium">
-                        {movie.title}
-                      </h3>
-
-                      <p className="text-sm text-white/50">
-                        {(movie.release_date || "").slice(0,4)}
-                      </p>
-                    </div>
-
-                  </Link>
-
-                  <div
-                    onClick={(e)=>{
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                  >
-                    <WatchlistButton
-                      movie={{
-                        id: movie.id,
-                        title: movie.title,
-                        poster: movie.poster_path
-                          ? IMG + movie.poster_path
-                          : "",
-                        backdrop: movie.backdrop_path
-                          ? IMG + movie.backdrop_path
-                          : "",
-                        year: (movie.release_date || "").slice(0,4),
-                        rating: movie.vote_average,
-                      }}
-                    />
-                  </div>
-
-                </div>
-              ))}
-
-            </div>
-          )}
+          
+          <SearchResults
+            loading={loading}
+            results={results}
+          />
 
         </div>
       </aside>

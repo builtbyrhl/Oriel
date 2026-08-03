@@ -17,35 +17,35 @@ export default function ContinueWatchingRow() {
   if (movies.length === 0) return null;
 
   return (
-    <section className="mb-14">
-      <div className="mb-5 flex items-center justify-between">
+    <section className="mb-16">
+      <div className="mb-6 flex items-center justify-between">
         <h2 className="text-2xl font-light text-white">
           Continue Watching
         </h2>
       </div>
 
-      <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+      <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
         {movies.map((movie) => (
           <Link
             key={movie.id}
             href={`/movie/${movie.id}`}
-            className="min-w-[190px] snap-start"
+            className="min-w-[140px] md:min-w-[190px] snap-start"
           >
-            <div className="overflow-hidden rounded-[28px] bg-neutral-900">
+            <div className="overflow-hidden rounded-[24px] bg-neutral-900">
 
               <img
                 src={movie.poster}
                 alt={movie.title}
-                className="aspect-[2/3] w-full object-cover"
+                className="aspect-[2/3] w-full object-cover transition duration-300 hover:scale-[1.03]"
               />
 
-              <div className="p-4">
+              <div className="p-3 md:p-4">
 
-                <h3 className="truncate text-lg font-medium text-white">
+                <h3 className="truncate text-base md:text-lg font-medium text-white">
                   {movie.title}
                 </h3>
 
-                <p className="mt-1 text-sm text-white/60">
+                <p className="mt-1 text-xs md:text-sm text-white/60">
                   {movie.year}
                 </p>
 

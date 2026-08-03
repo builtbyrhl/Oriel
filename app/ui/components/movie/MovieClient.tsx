@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import TrailerModal from "./TrailerModal";
 import CastSection from "./CastSection";
 
@@ -25,7 +26,11 @@ export default function MovieClient({
   const [open, setOpen] = useState(false);
 
   return (
-    <>
+    <motion.div
+  initial={{ opacity: 0, y: 24 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.55 }}
+  className="space-y-16 md:space-y-20">
       {trailerKey && (
         <>
           <button
@@ -44,6 +49,6 @@ export default function MovieClient({
       )}
 
       <CastSection cast={credits.cast} />
-    </>
+    </motion.div>
   );
 }

@@ -20,27 +20,27 @@ export default function MovieCard({ movie }: Props) {
   return (
     <Link href={`/movie/${movie.id}`} className="block">
       <motion.div
-        whileHover={{ y: -10, scale: 1.02 }}
+        whileHover={{ y: -6, scale: 1.015 }}
         whileTap={{ scale: 0.97 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        className="group relative overflow-hidden rounded-[28px] bg-neutral-900 cursor-pointer shadow-xl transition-shadow duration-300 hover:shadow-white/10"
+        className="group relative overflow-hidden rounded-[30px] border border-white/8 bg-neutral-900/90 cursor-pointer shadow-[0_10px_35px_rgba(0,0,0,0.45)] transition-all duration-500 hover:border-white/15 hover:shadow-[0_20px_50px_rgba(255,255,255,0.08)]"
       >
         <div className="aspect-[2/3] overflow-hidden">
           <img
             src={movie.image}
             alt={movie.title}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-115"
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
           />
         </div>
 
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/35 to-transparent" />
 
         <div className="pointer-events-none absolute bottom-0 w-full p-4">
-          <h3 className="text-lg font-medium text-white">
+          <h3 className="text-[17px] font-semibold tracking-tight text-white">
             {movie.title}
           </h3>
 
-          <p className="mt-1 text-sm text-white/70">
+          <p className="mt-1 text-xs tracking-wide text-white/60">
             {movie.genre} • {movie.year}
           </p>
         </div>

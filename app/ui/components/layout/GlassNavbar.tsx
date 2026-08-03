@@ -27,20 +27,20 @@ export default function GlassNavbar() {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-5 z-50 flex justify-center px-4">
+      <header className="fixed inset-x-0 top-4 z-50 flex justify-center px-3 md:px-6">
 
-        <nav className="w-full max-w-7xl rounded-3xl border border-white/10 bg-white/10 backdrop-blur-2xl shadow-2xl">
+        <nav className="w-full max-w-7xl rounded-2xl border border-white/10 bg-white/8 backdrop-blur-3xl shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
 
-          <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex h-14 md:h-16 items-center justify-between px-4 md:px-6">
 
             <Link
               href="/browse"
-              className="text-xl font-light tracking-[0.35em]"
+              className="text-lg md:text-xl font-light tracking-[0.45em]"
             >
               ORIEL
             </Link>
 
-            <div className="hidden md:flex gap-8">
+            <div className="hidden md:flex items-center gap-10">
 
               {items.map((item) => {
 
@@ -68,31 +68,31 @@ export default function GlassNavbar() {
 
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 md:gap-2">
 
               <button
                 onClick={() => setSearchOpen(true)}
-                className="rounded-full p-2 hover:bg-white/10 transition"
+                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105"
               >
                 <Search size={18} />
               </button>
 
               <Link
                 href="/collection"
-                className="rounded-full p-2 hover:bg-white/10 transition md:hidden"
+                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105 md:hidden"
               >
                 <Heart size={18} />
               </Link>
 
               <button
-                className="rounded-full p-2 hover:bg-white/10 transition"
+                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105"
               >
                 <User size={18} />
               </button>
 
               <button
                 onClick={() => setMenuOpen(true)}
-                className="rounded-full p-2 hover:bg-white/10 transition md:hidden"
+                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105 md:hidden"
               >
                 <Menu size={18} />
               </button>
