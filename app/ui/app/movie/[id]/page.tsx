@@ -12,6 +12,7 @@ import {
       import SimilarMovies from "@/components/movie/SimilarMovies";
 import Synopsis from "@/components/movie/Synopsis";
 import PageTransition from "@/components/layout/PageTransition";
+import { getNavbarVariant } from "@/lib/visual/navbar";
 
       type Props = {
         params: Promise<{

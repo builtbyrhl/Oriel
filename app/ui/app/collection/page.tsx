@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Search, Trash2 } from "lucide-react";
 import GlassNavbar from "@/components/layout/GlassNavbar";
+import { getNavbarVariant } from "@/lib/visual/navbar";
+import { getContext } from "@/lib/visual/context";
 import CollectionFilters from "@/components/collection/CollectionFilters";
 import {
   getWatchlist,
@@ -50,7 +52,7 @@ export default function CollectionPage() {
   return (
     <main className="min-h-screen bg-[#050505] text-white">
 
-      <GlassNavbar />
+      <GlassNavbar variant={getNavbarVariant({ context: getContext("collection") })} />
 
       <section className="border-b border-white/10">
         <div className="mx-auto max-w-7xl px-6 pt-24 md:pt-28 pb-12">
@@ -124,7 +126,7 @@ export default function CollectionPage() {
 
         ) : (
 
-          <div className="grid grid-cols-2 gap-6 md:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-4 lg:grid-cols-5">
 
             {filtered.map((movie)=>(
 
@@ -132,7 +134,7 @@ export default function CollectionPage() {
 
                 <Link href={`/movie/${movie.id}`}>
 
-                  <div className="overflow-hidden rounded-[28px] bg-neutral-900">
+                  <div className="overflow-hidden rounded-[22px] md:rounded-[28px] bg-neutral-900">
 
                     <img
                       src={movie.poster}
@@ -144,15 +146,15 @@ export default function CollectionPage() {
 
                 </Link>
 
-                <div className="mt-3 flex items-center justify-between">
+                <div className="mt-2 md:mt-3 flex items-start justify-between gap-3">
 
-                  <div>
+                  <div className="min-w-0 flex-1">
 
-                    <h3 className="truncate text-base md:text-lg">
+                    <h3 className="truncate text-[15px] md:text-lg font-medium leading-tight">
                       {movie.title}
                     </h3>
 
-                    <p className="text-sm text-white/50">
+                    <p className="mt-1 text-sm text-white/50">
                       {movie.year}
                     </p>
 
@@ -160,7 +162,7 @@ export default function CollectionPage() {
 
                   <button
                     onClick={() => removeMovie(movie.id)}
-                    className="rounded-full p-2 transition hover:bg-red-500/20"
+                    className="shrink-0 rounded-full p-2 transition hover:bg-red-500/20"
                   >
                     <Trash2 size={18}/>
                   </button>

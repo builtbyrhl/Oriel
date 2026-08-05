@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -9,18 +9,24 @@ import {
   Heart,
   X,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import SearchDrawer from "./SearchDrawer";
+
+type GlassNavbarProps = {
+  variant?: "default" | "hero-dark" | "hero-bright" | "immersive";
+};
 
 const items = [
   { href: "/browse", label: "Browse" },
-  { href: "/movies", label: "Movies" },
-  { href: "/series", label: "Series" },
+  { href: "/browse?type=movie", label: "Movies" },
+  { href: "/browse?type=tv", label: "Series" },
   { href: "/collection", label: "Collection" },
 ];
 
-export default function GlassNavbar() {
+function GlassNavbarInner({ variant = "default" }: GlassNavbarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentType = searchParams.get("type") ?? "";
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -29,7 +35,15 @@ export default function GlassNavbar() {
     <>
       <header className="fixed inset-x-0 top-4 z-50 flex justify-center px-3 md:px-6">
 
-        <nav className="w-full max-w-7xl rounded-2xl border border-white/10 bg-white/8 backdrop-blur-3xl shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
+        <nav className={`w-full max-w-7xl rounded-2xl transition-all duration-300 shadow-[0_10px_40px_rgba(0,0,0,0.45)] ${
+  variant === "hero-bright"
+    ? "border-white/18 bg-black/22 backdrop-blur-[26px]"
+    : variant === "hero-dark"
+    ? "border-white/10 bg-white/8 backdrop-blur-3xl"
+    : variant === "immersive"
+    ? "border-transparent bg-transparent backdrop-blur-none shadow-none"
+    : "border-white/10 bg-white/8 backdrop-blur-3xl"
+}` }>
 
           <div className="flex h-14 md:h-16 items-center justify-between px-4 md:px-6">
 
@@ -44,7 +58,14 @@ export default function GlassNavbar() {
 
               {items.map((item) => {
 
-                const active = pathname === item.href;
+                const active =
+                  item.href === "/browse"
+                    ? pathname === "/browse" && currentType === ""
+                    : item.href === "/browse?type=movie"
+                    ? pathname === "/browse" && currentType === "movie"
+                    : item.href === "/browse?type=tv"
+                    ? pathname === "/browse" && currentType === "tv"
+                    : pathname === item.href;
 
                 return (
                   <Link
@@ -163,5 +184,14 @@ export default function GlassNavbar() {
       </aside>
 
     </>
+  );
+}
+
+
+export default function GlassNavbar(props: GlassNavbarProps) {
+  return (
+    <Suspense fallback={null}>
+      <GlassNavbarInner {...props} />
+    </Suspense>
   );
 }
