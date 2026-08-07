@@ -7,6 +7,7 @@ import {
       } from "@/lib/tmdb";
 
       import MovieClient from "@/components/movie/MovieClient";
+import MovieActions from "@/components/movie/MovieActions";
       import ContinueWatchingTracker from "@/components/continue-watching/ContinueWatchingTracker";
       import WatchlistButton from "@/components/watchlist/WatchlistButton";
       import SimilarMovies from "@/components/movie/SimilarMovies";
@@ -135,10 +136,17 @@ import { getNavbarVariant } from "@/lib/visual/navbar";
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 <Synopsis text={movie.overview} />
 
-        <MovieClient
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          trailerKey={trailer?.key ?? null}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    credits={credits}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            />
+        
+<MovieActions
+          trailerKey={trailer?.key ?? null}
+          movieId={movie.id}
+          title={movie.title}
+        />
+
+<MovieClient
+  credits={credits}
+/>
+
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     <SimilarMovies
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               movies={similar.results ?? []}
