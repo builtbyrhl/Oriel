@@ -7,43 +7,78 @@ import MovieRow from "@/components/movies/MovieRow";
 import ContinueWatchingRow from "@/components/continue-watching/ContinueWatchingRow";
 import type { Movie } from "@/components/movies/MovieCard";
 
-const API = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-
-export default function BrowsePage() {
+export default function BrowseClient() {
   const searchParams = useSearchParams();
   const type = searchParams.get("type") === "tv" ? "tv" : "movie";
 
   const [featured, setFeatured] = useState<Movie | null>(null);
   const [trending, setTrending] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function load() {
       try {
+        setLoading(true);
+        setError(false);
+
         const res = await fetch(
-          `https://api.themoviedb.org/3/trending/${type}/week?api_key=${API}`
+          `/api/trending?type=${type}`,
+          {
+            signal: controller.signal,
+            cache: "no-store",
+          }
         );
+
+        if (!res.ok) {
+          throw new Error(`Trending request failed: ${res.status}`);
+        }
 
         const data = await res.json();
 
-        const movies: Movie[] = data.results.map((m: any) => ({
-          id: m.id,
-          title: m.title || m.name,
-          genre: type === "movie" ? "Movie" : "Series",
-          year: (m.release_date || m.first_air_date || "").slice(0,4),
-          image: `https://image.tmdb.org/t/p/w780${m.backdrop_path || m.poster_path}`,
-        }));
+        if (!Array.isArray(data.results)) {
+          throw new Error("Invalid trending response");
+        }
+
+        const movies: Movie[] = data.results
+          .filter((m: any) => m && m.id)
+          .map((m: any) => ({
+            id: m.id,
+            title: m.title || m.name || "Untitled",
+            genre: type === "movie" ? "Movie" : "Series",
+            year: (m.release_date || m.first_air_date || "").slice(0, 4),
+            image: m.backdrop_path || m.poster_path
+              ? `https://image.tmdb.org/t/p/w780${
+                  m.backdrop_path || m.poster_path
+                }`
+              : "",
+          }));
+
+        if (!movies.length) {
+          throw new Error("No movies returned");
+        }
 
         setFeatured(movies[0]);
         setTrending(movies);
       } catch (err) {
-        console.error(err);
+        if ((err as Error).name !== "AbortError") {
+          console.error("Browse loading error:", err);
+          setError(true);
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
     load();
+
+    return () => {
+      controller.abort();
+    };
   }, [type]);
 
   if (loading) {
@@ -54,10 +89,13 @@ export default function BrowsePage() {
     );
   }
 
-  if (!featured) {
+  if (error || !featured) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#050505] text-white">
-        Failed to load movies.
+      <main className="flex min-h-screen flex-col items-center justify-center bg-[#050505] text-white">
+        <p className="text-lg">Failed to load movies.</p>
+        <p className="mt-2 text-sm text-white/50">
+          Please try refreshing the page.
+        </p>
       </main>
     );
   }
@@ -67,11 +105,13 @@ export default function BrowsePage() {
       <GlassNavbar />
 
       <section className="relative h-[55vh] md:h-[70vh] overflow-hidden">
-        <img
-          src={featured.image}
-          alt={featured.title}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        {featured.image && (
+          <img
+            src={featured.image}
+            alt={featured.title}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
 
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/50 to-black/10" />
 
@@ -97,7 +137,6 @@ export default function BrowsePage() {
       </section>
 
       <div className="mx-auto max-w-7xl px-6 py-10">
-
         <ContinueWatchingRow />
 
         <MovieRow
@@ -111,10 +150,13 @@ export default function BrowsePage() {
         />
 
         <MovieRow
-          title={type === "movie" ? "Award Winning Movies" : "Award Winning Series"}
+          title={
+            type === "movie"
+              ? "Award Winning Movies"
+              : "Award Winning Series"
+          }
           movies={trending}
         />
-
       </div>
     </main>
   );
