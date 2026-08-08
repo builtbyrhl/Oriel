@@ -14,6 +14,7 @@ type Credit = {
 type Props = {
   movieId: number;
   movieTitle: string;
+  contentType?: "movie" | "series";
   credits: {
     cast: Credit[];
   };
@@ -22,6 +23,7 @@ type Props = {
 export default function MovieClient({
   movieId,
   movieTitle,
+  contentType = "movie",
   credits,
 }: Props) {
   return (
@@ -33,7 +35,7 @@ export default function MovieClient({
       <PlaybackPlayer
         tmdbId={movieId}
         title={movieTitle}
-        contentType="movie"
+        contentType={contentType}
       />
       <CastSection cast={credits.cast} />
     </motion.div>

@@ -10,6 +10,7 @@ export type Movie = {
   genre: string;
   year: string;
   image: string;
+  contentType?: "movie" | "series";
 };
 
 type Props = {
@@ -18,7 +19,14 @@ type Props = {
 
 export default function MovieCard({ movie }: Props) {
   return (
-    <Link href={`/movie/${movie.id}`} className="block">
+    <Link
+      href={
+        movie.contentType === "series"
+          ? `/tv/${movie.id}`
+          : `/movie/${movie.id}`
+      }
+      className="block"
+    >
       <motion.div
         whileHover={{ y: -6, scale: 1.015 }}
         whileTap={{ scale: 0.97 }}

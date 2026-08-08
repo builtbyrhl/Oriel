@@ -41,6 +41,8 @@ export default function BrowseClient() {
           image: `https://image.tmdb.org/t/p/w780${
             m.backdrop_path || m.poster_path
           }`,
+          contentType:
+            type === "tv" ? "series" : "movie",
         }));
 
         setFeatured(movies[0] || null);

@@ -60,6 +60,15 @@ export async function getMovieCredits(id: string) {
   return tmdbFetch(`/movie/${id}/credits`);
 }
 
+
+export async function getTv(id: string) {
+  return tmdbFetch(`/tv/${id}`);
+}
+
+export async function getTvCredits(id: string) {
+  return tmdbFetch(`/tv/${id}/credits`);
+}
+
 export async function getPerson(id: string) {
   return tmdbFetch(`/person/${id}`);
 }
