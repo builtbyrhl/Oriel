@@ -138,12 +138,13 @@ import { getNavbarVariant } from "@/lib/visual/navbar";
 
         
 <MovieActions
-          trailerKey={trailer?.key ?? null}
-          movieId={movie.id}
+                    tmdbId={movie.id}
           title={movie.title}
         />
 
 <MovieClient
+  movieId={movie.id}
+  movieTitle={movie.title}
   credits={credits}
 />
 

@@ -14,20 +14,15 @@ export default function BrowseClient() {
   const [featured, setFeatured] = useState<Movie | null>(null);
   const [trending, setTrending] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
-    const controller = new AbortController();
-
     async function load() {
       try {
         setLoading(true);
-        setError(false);
 
         const res = await fetch(
-          `/api/trending?type=${type}`,
+          `/api/tmdb/trending?type=${type}`,
           {
-            signal: controller.signal,
             cache: "no-store",
           }
         );
@@ -38,47 +33,28 @@ export default function BrowseClient() {
 
         const data = await res.json();
 
-        if (!Array.isArray(data.results)) {
-          throw new Error("Invalid trending response");
-        }
+        const movies: Movie[] = (data.results || []).map((m: any) => ({
+          id: m.id,
+          title: m.title || m.name,
+          genre: type === "movie" ? "Movie" : "Series",
+          year: (m.release_date || m.first_air_date || "").slice(0, 4),
+          image: `https://image.tmdb.org/t/p/w780${
+            m.backdrop_path || m.poster_path
+          }`,
+        }));
 
-        const movies: Movie[] = data.results
-          .filter((m: any) => m && m.id)
-          .map((m: any) => ({
-            id: m.id,
-            title: m.title || m.name || "Untitled",
-            genre: type === "movie" ? "Movie" : "Series",
-            year: (m.release_date || m.first_air_date || "").slice(0, 4),
-            image: m.backdrop_path || m.poster_path
-              ? `https://image.tmdb.org/t/p/w780${
-                  m.backdrop_path || m.poster_path
-                }`
-              : "",
-          }));
-
-        if (!movies.length) {
-          throw new Error("No movies returned");
-        }
-
-        setFeatured(movies[0]);
+        setFeatured(movies[0] || null);
         setTrending(movies);
       } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          console.error("Browse loading error:", err);
-          setError(true);
-        }
+        console.error(err);
+        setFeatured(null);
+        setTrending([]);
       } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     }
 
     load();
-
-    return () => {
-      controller.abort();
-    };
   }, [type]);
 
   if (loading) {
@@ -89,13 +65,10 @@ export default function BrowseClient() {
     );
   }
 
-  if (error || !featured) {
+  if (!featured) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-[#050505] text-white">
-        <p className="text-lg">Failed to load movies.</p>
-        <p className="mt-2 text-sm text-white/50">
-          Please try refreshing the page.
-        </p>
+      <main className="flex min-h-screen items-center justify-center bg-[#050505] text-white">
+        Failed to load movies.
       </main>
     );
   }
@@ -105,13 +78,11 @@ export default function BrowseClient() {
       <GlassNavbar />
 
       <section className="relative h-[55vh] md:h-[70vh] overflow-hidden">
-        {featured.image && (
-          <img
-            src={featured.image}
-            alt={featured.title}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        )}
+        <img
+          src={featured.image}
+          alt={featured.title}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
 
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/50 to-black/10" />
 

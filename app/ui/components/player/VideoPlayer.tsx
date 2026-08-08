@@ -1,29 +1,20 @@
 "use client";
 
-type Props = {
+interface VideoPlayerProps {
   src: string;
   title?: string;
-};
+}
 
-export default function VideoPlayer({
-  src,
-  title = "Oriel Player",
-}: Props) {
+export default function VideoPlayer({ src, title }: VideoPlayerProps) {
   return (
-    <div
-      className="absolute inset-0 bg-black animate-[fadeIn_.45s_ease]"
-      style={{
-        animationFillMode: "both",
-      }}
-    >
+    <div className="relative h-full w-full overflow-hidden bg-black">
       <iframe
         src={src}
-        title={title}
+        title={title ?? "Player"}
         className="h-full w-full border-0"
         allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
         allowFullScreen
-        loading="eager"
-        referrerPolicy="strict-origin-when-cross-origin"
+        referrerPolicy="origin"
       />
     </div>
   );

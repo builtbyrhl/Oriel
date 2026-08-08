@@ -1,55 +1,54 @@
 "use client";
 
 import { useState } from "react";
-import TrailerModal from "./TrailerModal";
-import WatchButton from "./WatchButton";
-import TrailerButton from "./TrailerButton";
+import type { MediaType } from "@/lib/streaming/types";
 import PlayerOverlay from "@/components/player/PlayerOverlay";
 
-type Props = {
-  trailerKey: string | null;
-  movieId: number;
-  title: string;
-};
+interface MovieActionsProps {
+  tmdbId: number;
+  type?: MediaType;
+  title?: string;
+  season?: number;
+  episode?: number;
+}
 
 export default function MovieActions({
-  trailerKey,
-  movieId,
+  tmdbId,
+  type = "movie",
   title,
-}: Props) {
-  const [openTrailer, setOpenTrailer] = useState(false);
-  const [openPlayer, setOpenPlayer] = useState(false);
+  season = 1,
+  episode = 1,
+}: MovieActionsProps) {
+  const [open, setOpen] = useState(false);
 
   return (
     <>
-      <div className="mt-10 flex flex-wrap items-center gap-4">
+      <button
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-white/90 active:scale-[0.98]"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden
+        >
+          <path d="M8 5v14l11-7z" />
+        </svg>
+        Watch
+      </button>
 
-        <WatchButton
-          onClick={() => setOpenPlayer(true)}
+      {open && (
+        <PlayerOverlay
+          tmdbId={tmdbId}
+          type={type}
+          title={title}
+          season={season}
+          episode={episode}
+          onClose={() => setOpen(false)}
         />
-
-        {trailerKey && (
-          <>
-            <TrailerButton
-              onClick={() => setOpenTrailer(true)}
-            />
-
-            <TrailerModal
-              open={openTrailer}
-              onClose={() => setOpenTrailer(false)}
-              videoKey={trailerKey}
-            />
-          </>
-        )}
-
-      </div>
-
-      <PlayerOverlay
-  open={openPlayer}
-  onClose={() => setOpenPlayer(false)}
-  movieId={movieId}
-  title={title}
-/>
+      )}
     </>
   );
 }

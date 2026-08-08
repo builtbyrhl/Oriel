@@ -1,46 +1,33 @@
-import VidAPI from "./providers/vidapi";
-import { StreamingProvider } from "./types";
+import type { MediaType, StreamResult, StreamSource } from "./types";
+import { providers } from "./providers";
 
-const providers: StreamingProvider[] = [
-  VidAPI,
-];
-
-export async function getMovieStream(
-  tmdbId: number
-) {
-  for (const provider of providers) {
-    try {
-      const result =
-        await provider.getMovieStream(tmdbId);
-
-      if (result) {
-        return result;
-      }
-    } catch {}
-  }
-
-  return null;
+interface GetStreamArgs {
+  tmdbId: number;
+  type: MediaType;
+  season?: number;
+  episode?: number;
 }
 
-export async function getEpisodeStream(
-  tmdbId: number,
-  season: number,
-  episode: number
-) {
-  for (const provider of providers) {
-    try {
-      const result =
-        await provider.getEpisodeStream(
-          tmdbId,
-          season,
-          episode
-        );
+export function getStream({
+  tmdbId,
+  type,
+  season = 1,
+  episode = 1,
+}: GetStreamArgs): StreamResult {
+  const sources: StreamSource[] = providers.map((p) => ({
+    provider: p.name,
+    label: p.label,
+    url:
+      type === "movie"
+        ? p.buildMovieUrl(tmdbId)
+        : p.buildTvUrl(tmdbId, season, episode),
+  }));
 
-      if (result) {
-        return result;
-      }
-    } catch {}
-  }
+  const primary = sources[0];
 
-  return null;
+  return {
+    url: primary.url,
+    provider: primary.provider,
+    sources,
+  };
 }

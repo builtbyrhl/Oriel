@@ -1,8 +1,8 @@
 import { StreamingProvider } from "../types";
 
-export const vidapi: StreamingProvider = {
-  name: "vidapi",
-  label: "VidAPI",
+export const vidsrc: StreamingProvider = {
+  name: "vidsrc",
+  label: "VidSrc",
 
   buildMovieUrl(tmdbId: number) {
     return "";
