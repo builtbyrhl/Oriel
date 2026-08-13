@@ -28,8 +28,12 @@ import { parseSemanticFields } from "./schema";
 import { createAiProvider } from "./providers";
 import type {
   AiProvider,
+  BackfillOptions,
+  BackfillProgress,
+  BackfillSummary,
   EnrichmentBatchSummary,
   EnrichmentClaim,
+  EnrichmentCoverage,
   EnrichmentDbGateway,
   EnrichMediaResult,
   SemanticEnrichmentRecord,
@@ -160,6 +164,30 @@ export const supabaseEnrichmentDbGateway: EnrichmentDbGateway = {
     }
 
     return (data as Array<{ media_type: MediaType; tmdb_id: number }>) ?? [];
+  },
+
+  async getEnrichmentCoverage(mediaType) {
+    const { data, error } = await getServerSupabaseClient().rpc(
+      "oriel_enrichment_coverage",
+      { p_media_type: mediaType }
+    );
+
+    if (error) {
+      throw new Error(`Unable to load enrichment coverage: ${error.message}`);
+    }
+
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | { total: number; enriched: number; remaining: number }
+      | undefined;
+
+    if (!row) return null;
+
+    return {
+      mediaType,
+      total: Number(row.total),
+      enriched: Number(row.enriched),
+      remaining: Number(row.remaining),
+    };
   },
 };
 
@@ -308,6 +336,103 @@ export async function enrichBatch(
       summary.errors.push(`${mediaType}:${item.tmdb_id}: ${result.error}`);
     }
   }
+
+  return summary;
+}
+
+/**
+ * Returns enrichment coverage for a media type (catalog totals + what
+ * remains), or null when the catalog has no rows for that type.
+ */
+export async function getEnrichmentCoverage(
+  mediaType: MediaType,
+  db?: EnrichmentDbGateway
+): Promise<EnrichmentCoverage | null> {
+  const gateway = db ?? supabaseEnrichmentDbGateway;
+
+  return gateway.getEnrichmentCoverage(mediaType);
+}
+
+/**
+ * Backfills the enrichment queue for a media type to completion.
+ *
+ * Runs `enrichBatch` in a loop until the queue is drained (a batch claims
+ * zero items) or `maxItems` have been processed. Failed jobs are recorded by
+ * the job lifecycle with their backoff, so a run always terminates: exhausted
+ * attempts drop out of the queue and backoff-bounded failures re-enter only
+ * after `next_run_at`. Each batch is independent — one bad batch never aborts
+ * the rest of the run.
+ */
+export async function backfillEnrichment(
+  options: BackfillOptions
+): Promise<BackfillSummary> {
+  const deps = resolveEnrichmentDeps({
+    provider: options.provider,
+    db: options.db,
+  });
+  const { mediaType } = options;
+  const batchSize = Math.max(1, Math.min(options.batchSize ?? 10, 100));
+  const maxItems = Math.max(1, Math.round(options.maxItems ?? 500));
+  const schemaVersion = options.schemaVersion ?? 1;
+  const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
+
+  const summary: BackfillSummary = {
+    mediaType,
+    requested: 0,
+    attempted: 0,
+    succeeded: 0,
+    skipped: 0,
+    failed: 0,
+    errors: [],
+    batches: 0,
+    maxItems,
+    stopped: "exhausted",
+  };
+
+  while (summary.attempted < maxItems) {
+    const remaining = maxItems - summary.attempted;
+    const batch = await enrichBatch({
+      mediaType,
+      limit: Math.min(batchSize, remaining),
+      provider: deps.provider,
+      db: deps.db,
+      schemaVersion,
+      maxAttempts,
+    });
+
+    // A batch that claims nothing means the queue is drained. Treat it as a
+    // probe, not a batch: don't count it, aggregate it, or report it.
+    if (batch.attempted === 0) {
+      summary.stopped = "exhausted";
+      break;
+    }
+
+    summary.batches += 1;
+    summary.attempted += batch.attempted;
+    summary.succeeded += batch.succeeded;
+    summary.skipped += batch.skipped;
+    summary.failed += batch.failed;
+    summary.errors.push(...batch.errors);
+
+    const progress: BackfillProgress = {
+      batches: summary.batches,
+      processed: summary.attempted,
+      succeeded: summary.succeeded,
+      skipped: summary.skipped,
+      failed: summary.failed,
+    };
+
+    options.onBatch?.(batch, progress);
+
+    if (summary.attempted >= maxItems) {
+      summary.stopped = "cap_reached";
+      break;
+    }
+  }
+
+  // `requested` in a drain context is the number of items actually pulled from
+  // the queue — every queued item is attempted.
+  summary.requested = summary.attempted;
 
   return summary;
 }

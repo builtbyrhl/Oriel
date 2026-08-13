@@ -131,6 +131,11 @@ export interface EnrichmentDbGateway {
     mediaType: MediaType,
     limit: number
   ): Promise<Array<{ media_type: MediaType; tmdb_id: number }>>;
+
+  /** Counts catalog size, successfully enriched items, and what remains. */
+  getEnrichmentCoverage(
+    mediaType: MediaType
+  ): Promise<EnrichmentCoverage | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -150,4 +155,52 @@ export interface EnrichmentBatchSummary {
   skipped: number;
   failed: number;
   errors: string[];
+}
+
+/** Coverage of a media type by successful enrichment. */
+export interface EnrichmentCoverage {
+  mediaType: MediaType;
+  /** Total media rows in the catalog for this type. */
+  total: number;
+  /** Rows with a succeeded enrichment job. */
+  enriched: number;
+  /** Rows still needing enrichment (total - enriched). */
+  remaining: number;
+}
+
+// ---------------------------------------------------------------------------
+// Backfill (drain) engine
+// ---------------------------------------------------------------------------
+
+/** Options for draining the enrichment queue to completion. */
+export interface BackfillOptions {
+  mediaType: MediaType;
+  /** Per-batch queue size (default 10, clamped to [1, 100]). */
+  batchSize?: number;
+  /** Hard cap on items processed in one run (default 500). */
+  maxItems?: number;
+  provider?: AiProvider;
+  db?: EnrichmentDbGateway;
+  schemaVersion?: number;
+  maxAttempts?: number;
+  /** Invoked after each batch with that batch's summary and running totals. */
+  onBatch?: (batch: EnrichmentBatchSummary, progress: BackfillProgress) => void;
+}
+
+/** Running totals across all batches of a backfill run. */
+export interface BackfillProgress {
+  batches: number;
+  /** Items claimed from the queue so far (attempted). */
+  processed: number;
+  succeeded: number;
+  skipped: number;
+  failed: number;
+}
+
+/** Aggregated result of a backfill run. */
+export interface BackfillSummary extends EnrichmentBatchSummary {
+  batches: number;
+  maxItems: number;
+  /** Why the run stopped: drained the queue, or hit the item cap. */
+  stopped: "exhausted" | "cap_reached";
 }

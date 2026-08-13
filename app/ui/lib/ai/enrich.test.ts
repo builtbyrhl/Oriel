@@ -167,6 +167,23 @@ function makeEnrichmentDb(
 
       return items.slice(0, limit);
     },
+
+    async getEnrichmentCoverage(mediaType) {
+      let total = 0;
+      let enriched = 0;
+
+      for (const media of mediaPool.values()) {
+        if (media.media_type !== mediaType) continue;
+
+        total += 1;
+
+        if (jobs.get(`${media.media_type}:${media.tmdb_id}`)?.status === "succeeded") {
+          enriched += 1;
+        }
+      }
+
+      return { mediaType, total, enriched, remaining: total - enriched };
+    },
   };
 
   return {
