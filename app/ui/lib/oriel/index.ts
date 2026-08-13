@@ -4,3 +4,4 @@ export * from "./types";
 export * from "./normalize";
 export * from "./validate";
 export * from "./ingest";
+export * from "./curation";
