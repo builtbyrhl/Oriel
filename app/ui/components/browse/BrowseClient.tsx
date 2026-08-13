@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import GlassNavbar from "@/components/layout/GlassNavbar";
 import BrowseHero from "@/components/browse/BrowseHero";
+import ContinueWatchingSection from "@/components/browse/ContinueWatchingSection";
 import SpinToExplore from "@/components/browse/SpinToExplore";
-import SelectedMoviePanel from "@/components/browse/SelectedMoviePanel";
-import CuratedStrip from "@/components/browse/CuratedStrip";
-import ReservedSection from "@/components/browse/ReservedSection";
+import RhythmSection from "@/components/browse/RhythmSection";
+import ThisWeekSection from "@/components/browse/ThisWeekSection";
 import type { Movie } from "@/components/movies/MovieCard";
 import {
   fetchDiscovery,
@@ -70,41 +70,19 @@ export default function BrowseClient() {
         <div className="h-[60vh] bg-gradient-to-b from-neutral-900 to-[#050505]" />
       )}
 
-      <div className="mx-auto max-w-7xl px-6 py-10">
-        <SpinToExplore value={query} onChange={setQuery} />
+      <main className="mx-auto max-w-7xl px-5 md:px-6">
+        <ContinueWatchingSection />
 
-        {featured && (
-          <div className="mt-16">
-            <SelectedMoviePanel movie={featured} />
-          </div>
-        )}
+        <SpinToExplore value={query} onChange={setQuery} movies={movies} />
 
-        {movies.length > 1 && (
-          <div className="mt-16">
-            <CuratedStrip
-              title={
-                query.genre || query.mood
-                  ? "The Selection"
-                  : "Trending Now"
-              }
-              movies={movies}
-            />
-          </div>
-        )}
+        <RhythmSection movies={movies} />
 
-        <div className="mt-16 space-y-10">
-          <ReservedSection
-            eyebrow="Curated"
-            title="Visual Collections"
-            description="Hand-picked visual sections will live here — editorial strips, mood boards, and themed galleries."
-          />
-          <ReservedSection
-            eyebrow="Recommendations"
-            title="Trading-style Signal Feed"
-            description="A live, trading-style recommendation stream with directional signals will land in this reserved space."
-          />
-        </div>
-      </div>
+        <ThisWeekSection movies={movies} />
+
+        <p className="py-16 text-center text-[11px] font-medium uppercase tracking-[0.3em] text-white/20">
+          Oriel · Cinematic discovery, without the streaming-wall feeling
+        </p>
+      </main>
     </main>
   );
 }

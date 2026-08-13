@@ -46,7 +46,7 @@ export default function BrowseHero({ movie, type }: Props) {
               {type === "movie" ? "Featured Movie" : "Featured Series"}
             </p>
 
-            <h1 className="max-w-3xl text-4xl font-extralight leading-[1.05] tracking-tight text-white md:text-6xl lg:text-7xl">
+            <h1 className="max-w-3xl font-serif text-5xl font-normal leading-[1.02] tracking-tight text-[#f3f0e9] md:text-7xl lg:text-8xl">
               {movie.title}
             </h1>
 
