@@ -49,12 +49,16 @@ type Props = {
  * is the current pick, and its metadata + synopsis render below the ring.
  */
 export default function SpinToExplore({ value, onChange, movies }: Props) {
+  const dimensions = [value.genre, value.mood].filter(
+    (d): d is string => Boolean(d?.trim())
+  );
+
   return (
     <section className="pt-[74px]">
       <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
         <div className="lg:pr-8">
           <SectionHead
-            eyebrow="02 · Oriel Orbit"
+            eyebrow="01 · Oriel Orbit"
             title="Spin to Explore"
             sub="Drag to rotate the rail — the centre is your current pick. Discovery stays in one place, never spread across the page."
           />
@@ -77,6 +81,19 @@ export default function SpinToExplore({ value, onChange, movies }: Props) {
           />
         </div>
       </div>
+
+      {dimensions.length > 0 && (
+        <div className="mt-6 flex items-center justify-center gap-5">
+          {dimensions.map((dimension) => (
+            <span
+              key={dimension}
+              className="text-[11px] font-medium uppercase tracking-[0.3em] text-[#b5aa9a]"
+            >
+              [{dimension}]
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="mt-10">
         <OrielOrbit movies={movies} />

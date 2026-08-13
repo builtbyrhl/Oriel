@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import GlassNavbar from "@/components/layout/GlassNavbar";
 import BrowseHero from "@/components/browse/BrowseHero";
-import ContinueWatchingSection from "@/components/browse/ContinueWatchingSection";
 import SpinToExplore from "@/components/browse/SpinToExplore";
 import RhythmSection from "@/components/browse/RhythmSection";
 import ThisWeekSection from "@/components/browse/ThisWeekSection";
@@ -13,6 +12,7 @@ import {
   fetchDiscovery,
   type DiscoveryQuery,
 } from "@/lib/oriel/discovery-client";
+import { fetchTrending } from "@/lib/tmdb/trending-client";
 
 export default function BrowseClient() {
   const searchParams = useSearchParams();
@@ -21,32 +21,49 @@ export default function BrowseClient() {
   const [query, setQuery] = useState<DiscoveryQuery>({});
   const [featured, setFeatured] = useState<Movie | null>(null);
   const [movies, setMovies] = useState<Movie[]>([]);
+  const [weekly, setWeekly] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
       try {
         setLoading(true);
 
-        const curated = await fetchDiscovery({
-          genre: query.genre,
-          mood: query.mood,
-          mediaType: type,
-          limit: 40,
-        });
+        const [curated, trending] = await Promise.all([
+          fetchDiscovery({
+            genre: query.genre,
+            mood: query.mood,
+            mediaType: type,
+            limit: 40,
+          }),
+          fetchTrending(type),
+        ]);
 
-        setFeatured(curated[0] || null);
+        if (cancelled) return;
+
+        setFeatured(trending[0] || null);
         setMovies(curated);
+        setWeekly(trending);
       } catch (err) {
         console.error(err);
+
+        if (cancelled) return;
+
         setFeatured(null);
         setMovies([]);
+        setWeekly([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [type, query]);
 
   if (loading) {
@@ -71,13 +88,11 @@ export default function BrowseClient() {
       )}
 
       <main className="mx-auto max-w-7xl px-5 md:px-6">
-        <ContinueWatchingSection />
-
         <SpinToExplore value={query} onChange={setQuery} movies={movies} />
 
         <RhythmSection movies={movies} />
 
-        <ThisWeekSection movies={movies} />
+        <ThisWeekSection movies={weekly} />
 
         <p className="py-16 text-center text-[11px] font-medium uppercase tracking-[0.3em] text-white/20">
           Oriel · Cinematic discovery, without the streaming-wall feeling

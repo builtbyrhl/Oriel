@@ -1,42 +1,38 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import SectionHead from "@/components/browse/SectionHead";
 import type { Movie } from "@/components/movies/MovieCard";
 
 /**
- * Art-directed floating-poster layout: fixed slots with varied sizes,
- * positions and subtle rotations so the canvas reads like a film-art
- * gallery, not a grid or a row. Positions are percentages of the canvas so
- * the composition survives desktop; on mobile the canvas scrolls wide.
+ * Art-directed floating-poster canvas. Posters are the content: no rows, no
+ * grids, no cards-with-text-underneath. Fixed slots with varied sizes, depth,
+ * subtle rotations and slight overlaps read like a film-art gallery; a faint
+ * vignette keeps the stage cinematic. Each poster floats gently on its own
+ * rhythm (very slow, staggered, never bouncy).
+ *
+ * The section is props-driven: the editorial collection (title + copy) is
+ * data, and the candidates arrive as `movies` — changing either never
+ * requires rebuilding the component.
  */
-const SLOTS: Array<{
-  left: number;
-  top: number;
-  w: number;
-  wMobile: number;
-  rotate: number;
-  z: number;
-}> = [
-  { left: 5, top: 20, w: 158, wMobile: 118, rotate: -5, z: 1 },
-  { left: 21, top: 8, w: 176, wMobile: 132, rotate: -1, z: 2 },
-  { left: 37, top: 26, w: 138, wMobile: 104, rotate: 3, z: 1 },
-  { left: 49, top: 5, w: 168, wMobile: 126, rotate: -2, z: 3 },
-  { left: 63, top: 22, w: 150, wMobile: 112, rotate: 5, z: 1 },
-  { left: 77, top: 9, w: 176, wMobile: 132, rotate: -3, z: 2 },
-  { left: 92, top: 24, w: 148, wMobile: 112, rotate: 2, z: 1 },
-];
 
-const COLLECTIONS = [
+export type RhythmCollection = {
+  label: string;
+  eyebrow: string;
+  copy: string;
+};
+
+const DEFAULT_COLLECTIONS: RhythmCollection[] = [
   {
     label: "Award Winning",
     eyebrow: "Editorial · Now",
     copy: "The year's most acclaimed films — celebrated, collected, and floating here.",
   },
   {
-    label: "Autumn Special",
+    label: "Hidden Gems",
     eyebrow: "Editorial · This week",
-    copy: "A quiet season for slow burners. Warm light, long cuts, lingering moods.",
+    copy: "Quiet discoveries that never found the top of the charts — only the right audience.",
   },
   {
     label: "Cult Classics",
@@ -45,21 +41,41 @@ const COLLECTIONS = [
   },
 ];
 
+const SLOTS: Array<{
+  left: number;
+  top: number;
+  w: number;
+  wMobile: number;
+  rotate: number;
+  z: number;
+  opacity: number;
+}> = [
+  { left: 3, top: 24, w: 150, wMobile: 112, rotate: -4, z: 1, opacity: 0.82 },
+  { left: 16, top: 6, w: 176, wMobile: 132, rotate: -1, z: 3, opacity: 1 },
+  { left: 30, top: 28, w: 134, wMobile: 100, rotate: 3, z: 2, opacity: 0.9 },
+  { left: 43, top: 3, w: 168, wMobile: 126, rotate: -2, z: 4, opacity: 1 },
+  { left: 56, top: 26, w: 144, wMobile: 108, rotate: 5, z: 2, opacity: 0.88 },
+  { left: 70, top: 8, w: 172, wMobile: 130, rotate: -3, z: 3, opacity: 1 },
+  { left: 84, top: 30, w: 140, wMobile: 106, rotate: 2, z: 1, opacity: 0.8 },
+];
+
 type Props = {
   movies: Movie[];
+  collections?: RhythmCollection[];
 };
 
-export default function RhythmSection({ movies }: Props) {
+export default function RhythmSection({ movies, collections }: Props) {
+  const list = collections ?? DEFAULT_COLLECTIONS;
   const [index, setIndex] = useState(0);
-  const collection = COLLECTIONS[index];
+  const collection = list[index % list.length];
   const posters = movies.slice(0, SLOTS.length);
 
   return (
-    <section className="pt-[74px]">
+    <section className="pt-24 md:pt-32">
       <SectionHead
-        eyebrow="03 · In focus"
-        title="A page with Rhythm"
-        sub="A cinematic stage for floating posters. The label below changes with the collection shown inside."
+        eyebrow="02 · Rhythm"
+        title="Rhythm"
+        sub="A cinematic stage for floating posters — art-directed, never a row. The label below changes with the collection in focus."
       />
 
       {/* Black cinematic canvas */}
@@ -68,20 +84,24 @@ export default function RhythmSection({ movies }: Props) {
           {posters.map((movie, i) => {
             const slot = SLOTS[i];
             return (
-              <div
+              <motion.div
                 key={movie.id}
-                style={{
-                  left: `${slot.left}%`,
-                  top: `${slot.top}%`,
-                  zIndex: slot.z,
+                className="absolute"
+                style={{ left: `${slot.left}%`, top: `${slot.top}%`, zIndex: slot.z }}
+                animate={{ y: [0, -6, 0] }}
+                transition={{
+                  duration: 7 + (i % 3) * 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: i * 0.6,
                 }}
-                className="group absolute"
               >
                 <div
-                  className="overflow-hidden rounded-2xl border border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.75)] transition-transform duration-500 group-hover:-translate-y-2 group-hover:scale-[1.03]"
+                  className="overflow-hidden rounded-xl border border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.75)] transition-transform duration-500 hover:-translate-y-2 hover:scale-[1.03]"
                   style={{
                     width: `${slot.wMobile}px`,
                     transform: `rotate(${slot.rotate}deg)`,
+                    opacity: slot.opacity,
                   }}
                 >
                   <img
@@ -90,12 +110,13 @@ export default function RhythmSection({ movies }: Props) {
                     className="aspect-[2/3] w-full object-cover"
                   />
                 </div>
-                <p className="pointer-events-none mt-3 font-serif text-sm tracking-tight text-white/0 transition-colors duration-500 group-hover:text-white/70">
-                  {movie.title}
-                </p>
-              </div>
+              </motion.div>
             );
           })}
+
+          {/* Vignette + soft top highlight keep the stage dark and deep */}
+          <div className="pointer-events-none absolute inset-0 rounded-[26px] shadow-[inset_0_0_140px_rgba(0,0,0,0.55)]" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
         </div>
       </div>
 
@@ -113,9 +134,9 @@ export default function RhythmSection({ movies }: Props) {
         </p>
       </div>
 
-      {/* Collection switcher */}
+      {/* Collection switcher — pure data, so themes can change without a rebuild */}
       <div className="mt-8 flex items-center justify-center gap-6">
-        {COLLECTIONS.map((c, i) => (
+        {list.map((c, i) => (
           <button
             key={c.label}
             onClick={() => setIndex(i)}

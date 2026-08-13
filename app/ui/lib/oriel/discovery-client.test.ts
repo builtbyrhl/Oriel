@@ -66,6 +66,8 @@ describe("mapDiscoveryResponse", () => {
       year: "1980",
       image: "https://image.tmdb.org/t/p/w780/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
       contentType: "movie",
+      rating: 8.4,
+      genres: ["Horror", "Thriller"],
     });
   });
 

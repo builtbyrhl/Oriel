@@ -11,6 +11,9 @@ export type Movie = {
   year: string;
   image: string;
   contentType?: "movie" | "series";
+  rating?: number | null;
+  genres?: string[];
+  overview?: string;
 };
 
 type Props = {

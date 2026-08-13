@@ -3,35 +3,24 @@
 import { useEffect, useRef, useState } from "react";
 import type { Movie } from "@/components/movies/MovieCard";
 
-/**
- * Shortens long titles for the clean poster treatment ("Dune Part 3" → "Dune..")
- * so cards never carry clutter. Short titles pass through untouched.
- */
-export function shortTitle(title: string): string {
-  const t = title.trim().replace(/\s+/g, " ");
-  if (t.length <= 10) return t;
-
-  const words = t.split(" ");
-  const lead = ["the", "a", "an"].includes(words[0]?.toLowerCase()) ? 1 : 0;
-  let out = words.slice(0, lead + 1).join(" ");
-  if (out.length > 10) out = out.slice(0, 10).replace(/\s+$/, "");
-  return `${out}..`;
-}
-
 const SPIN_DEG_PER_S = 6;
 const DRAG_FACTOR = 0.12;
-const RX = 44; // ellipse radii, % of canvas
-const RY = 36;
+const RX = 46; // shallow horizontal arc — radii, % of canvas
+const RY = 16;
+const CY = 58; // ellipse centre height, % of canvas
+const RING_SIZE = 5; // one primary + two inner + two outer posters
 
 type Props = {
   movies: Movie[];
 };
 
 /**
- * The Oriel Orbit — a ring of clean posters (image + short title only) that
- * spins slowly on its own. Drag to rotate the rail. The card at the top of the
- * ring is the current pick: it rises slightly, gains a sleek white outline,
- * and drives the details panel below. No poster rotation physics beyond this.
+ * The Oriel Orbit — a shallow horizontal arc of clean posters (artwork + a
+ * single truncated name) that turns slowly on its own. Drag to rotate the
+ * rail; the card passing through the apex is the current pick: it sits at the
+ * visual centre, slightly higher and slightly larger, with a subtle white
+ * outline and a soft elevation. Surrounding posters recede — smaller, lower,
+ * dimmer. No poster tilts, no glow: the restraint is the point.
  */
 export default function OrielOrbit({ movies }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -46,8 +35,10 @@ export default function OrielOrbit({ movies }: Props) {
 
   const [pickIndex, setPickIndex] = useState(0);
 
+  const ring = movies.slice(0, RING_SIZE);
+
   useEffect(() => {
-    const count = movies.length;
+    const count = Math.min(movies.length, RING_SIZE);
     if (count === 0) return;
 
     const applyFrame = () => {
@@ -76,12 +67,12 @@ export default function OrielOrbit({ movies }: Props) {
 
         const rad = ((diffs[i] + 270) * Math.PI) / 180;
         const x = 50 + RX * Math.cos(rad);
-        const y = 50 + RY * Math.sin(rad);
+        const y = CY + RY * Math.sin(rad);
 
         const proximity = Math.max(0, Math.cos((diffs[i] * Math.PI) / 180));
         const isPick = i === closest;
-        const scale = 0.78 + 0.27 * proximity;
-        const rise = isPick ? -12 : 0;
+        const scale = isPick ? 1.07 : 0.78 + 0.27 * proximity;
+        const rise = isPick ? -16 : 0;
         const opacity = 0.55 + 0.45 * proximity;
 
         card.style.left = `${x}%`;
@@ -89,7 +80,7 @@ export default function OrielOrbit({ movies }: Props) {
         card.style.zIndex = isPick ? "30" : "10";
         card.style.opacity = opacity.toFixed(3);
         card.style.transform =
-          `translate(-50%,-50%) translateY(${rise}px) rotate(${-total}deg) scale(${scale.toFixed(3)})`;
+          `translate(-50%,-50%) translateY(${rise}px) scale(${scale.toFixed(3)})`;
       }
 
       if (closest !== pickIndexRef.current) {
@@ -128,8 +119,16 @@ export default function OrielOrbit({ movies }: Props) {
     dragging.current = false;
   }
 
-  const count = movies.length;
-  const pick = movies[pickIndex] ?? movies[0];
+  const count = ring.length;
+  const pick = ring[pickIndex] ?? ring[0];
+
+  const meta = [
+    pick?.year,
+    pick?.rating != null ? `${pick.rating.toFixed(1)}` : null,
+    pick?.genres?.length ? pick.genres.slice(0, 3).join(" · ") : pick?.genre,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div>
@@ -139,7 +138,7 @@ export default function OrielOrbit({ movies }: Props) {
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        className="relative h-[430px] cursor-grab touch-pan-y select-none overflow-hidden rounded-[30px] border border-white/10 bg-[radial-gradient(circle_at_50%_48%,#17130f_0%,#0b0b0b_45%,#070707_75%)] active:cursor-grabbing md:h-[560px]"
+        className="relative h-[430px] cursor-grab touch-pan-y select-none overflow-hidden rounded-[30px] border border-white/10 bg-[radial-gradient(circle_at_50%_58%,#17130f_0%,#0b0b0b_45%,#070707_75%)] active:cursor-grabbing md:h-[560px]"
       >
         <p className="absolute left-6 top-5 text-[9px] font-medium uppercase tracking-[0.22em] text-white/30 md:left-8 md:top-6">
           Drag to rotate · centre = current pick
@@ -147,11 +146,11 @@ export default function OrielOrbit({ movies }: Props) {
 
         <div className="absolute inset-0">
           {count > 0 &&
-            movies.map((movie, i) => {
+            ring.map((movie, i) => {
               const slotDeg = (i / count) * 360 - 90;
               const rad = (slotDeg * Math.PI) / 180;
               const x0 = 50 + RX * Math.cos(rad);
-              const y0 = 50 + RY * Math.sin(rad);
+              const y0 = CY + RY * Math.sin(rad);
 
               return (
                 <div
@@ -160,20 +159,20 @@ export default function OrielOrbit({ movies }: Props) {
                     cardRefs.current[i] = el;
                   }}
                   style={{ left: `${x0}%`, top: `${y0}%` }}
-                  className={`absolute w-[118px] transition-shadow duration-500 md:w-[168px] ${
+                  className={`absolute w-[112px] transition-shadow duration-500 md:w-[156px] ${
                     pickIndex === i
-                      ? "rounded-2xl border border-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.35),0_0_70px_rgba(255,255,255,0.12)]"
-                      : "rounded-2xl border border-white/10 shadow-[0_18px_45px_rgba(0,0,0,0.6)]"
+                      ? "rounded-xl border border-white/70 shadow-[0_0_0_1px_rgba(255,255,255,0.18),0_28px_60px_rgba(0,0,0,0.7)]"
+                      : "rounded-xl border border-white/10 shadow-[0_18px_45px_rgba(0,0,0,0.6)]"
                   }`}
                 >
                   <img
                     src={movie.image}
                     alt={movie.title}
-                    className="aspect-[2/3] w-full rounded-2xl object-cover"
+                    className="aspect-[2/3] w-full rounded-xl object-cover"
                   />
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-2xl bg-gradient-to-t from-black/85 via-black/30 to-transparent px-3 pb-2 pt-8">
-                    <p className="font-serif text-sm tracking-tight text-[#f3f0e9] md:text-base">
-                      {shortTitle(movie.title)}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-xl bg-gradient-to-t from-black/90 via-black/40 to-transparent px-2.5 pb-2 pt-10">
+                    <p className="truncate text-[9px] font-semibold uppercase tracking-[0.18em] text-white/85">
+                      {movie.title}
                     </p>
                   </div>
                 </div>
@@ -201,18 +200,15 @@ export default function OrielOrbit({ movies }: Props) {
             {pick.title}
           </h3>
 
-          <p className="mt-4 text-xs font-light tracking-wide text-white/50">
-            {pick.genre}
-            {pick.year ? (
-              <>
-                <span className="mx-2 inline-block h-1 w-1 rounded-full bg-white/30 align-middle" />
-                {pick.year}
-              </>
-            ) : null}
-          </p>
+          {meta && (
+            <p className="mt-4 text-xs font-light uppercase tracking-[0.2em] text-white/50">
+              {meta}
+            </p>
+          )}
 
           <p className="mx-auto mt-6 max-w-xl text-sm font-light leading-relaxed text-white/40">
-            The synopsis will surface here once Spin lands a title in focus.
+            {pick.overview ||
+              "The synopsis will surface here once Spin lands a title in focus."}
           </p>
         </div>
       )}

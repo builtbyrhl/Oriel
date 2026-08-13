@@ -90,6 +90,8 @@ function toMovie(candidate: DiscoveryApiCandidateDto): Movie {
     year: (candidate.releaseDate ?? "").slice(0, 4),
     image: discoveryImageUrl(candidate.posterPath ?? candidate.backdropPath),
     contentType: candidate.mediaType === "tv" ? "series" : "movie",
+    rating: candidate.voteAverage,
+    genres: candidate.genres ?? [],
   };
 }
 
