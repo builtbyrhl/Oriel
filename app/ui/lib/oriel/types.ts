@@ -158,6 +158,8 @@ export interface IngestionSummary {
   source: DiscoverySource;
   requested: number;
   discovered: number;
+  /** Candidates already present in the catalogue that were skipped via skipExisting. */
+  skippedExisting: number;
   fetched: number;
   inserted: number;
   updated: number;

@@ -10,6 +10,8 @@
 //   * idempotent — running twice never duplicates rows (upsert on media_type,tmdb_id)
 //   * failure-isolated — one bad record never aborts the batch
 //   * reusable — supports multiple discovery sources and both media types
+//   * incremental — with `skipExisting`, already-ingested candidates are
+//     skipped before any detail fetch, so catalogue expansion re-runs cheaply
 //
 // Movies and TV series are ingested through the same pipeline; `mediaType`
 // selects which TMDB endpoints and normalizers to use.
@@ -238,6 +240,8 @@ export interface IngestionOptions {
   genreId?: number;
   minVoteCount?: number;
   year?: number;
+  /** Skip candidates that already exist in the catalogue before fetching details. */
+  skipExisting?: boolean;
   concurrency?: number;
   tmdb?: TmdbGateway;
   db?: MovieDbGateway;
@@ -323,6 +327,7 @@ export async function runIngestion(
     source,
     requested: limit,
     discovered: 0,
+    skippedExisting: 0,
     fetched: 0,
     inserted: 0,
     updated: 0,
@@ -341,12 +346,34 @@ export async function runIngestion(
       year: options.year,
     });
 
-    const discovered =
+    let discovered =
       (listing.results ?? []).filter(
         (candidate) =>
           typeof candidate?.id === "number" &&
           Number.isFinite(candidate.id)
       ).slice(0, limit) ?? [];
+
+    if (options.skipExisting) {
+      try {
+        const existing = await deps.db.existingTmdbIds(
+          discovered.map((candidate) => candidate.id),
+          mediaType
+        );
+
+        const kept = discovered.filter(
+          (candidate) => !existing.has(candidate.id)
+        );
+
+        summary.skippedExisting = discovered.length - kept.length;
+        discovered = kept;
+      } catch (err) {
+        summary.errors.push(
+          `Existing-id check failed (continuing without skip): ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+      }
+    }
 
     summary.discovered = discovered.length;
 

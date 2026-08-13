@@ -215,6 +215,71 @@ describe("runIngestion", () => {
     assert.equal(db.state.keys().length, 3, "database must never grow past unique rows");
   });
 
+  it("skips already-ingested candidates before fetching details when skipExisting is set", async () => {
+    const tmdb = makeTmdb();
+    const db = makeDb(["movie:2"]);
+
+    const summary = await runIngestion({
+      source: "trending",
+      mediaType: "movie",
+      limit: 3,
+      skipExisting: true,
+      tmdb,
+      db,
+    });
+
+    assert.equal(summary.discovered, 2, "only the ids not already present are kept");
+    assert.equal(summary.skippedExisting, 1);
+    assert.equal(summary.fetched, 2);
+    assert.equal(summary.inserted, 2);
+    assert.equal(summary.updated, 0);
+    assert.equal(db.state.keys().length, 3);
+  });
+
+  it("skips existing TV candidates when skipExisting is set, scoped per media type", async () => {
+    const tmdb = makeTmdb();
+    // movie:101 already exists, but the TV row for 101 does not.
+    const db = makeDb(["movie:101"]);
+
+    const summary = await runIngestion({
+      source: "trending",
+      mediaType: "tv",
+      limit: 3,
+      skipExisting: true,
+      tmdb,
+      db,
+    });
+
+    assert.equal(summary.discovered, 3);
+    assert.equal(summary.skippedExisting, 0);
+    assert.equal(summary.inserted, 3);
+    assert.ok(db.state.has("tv:101"));
+  });
+
+  it("falls back to full ingestion when the existing-id check fails", async () => {
+    const tmdb = makeTmdb();
+    const db = makeDb([], {
+      async existingTmdbIds() {
+        throw new Error("db unreachable");
+      },
+    });
+
+    const summary = await runIngestion({
+      source: "trending",
+      mediaType: "movie",
+      limit: 3,
+      skipExisting: true,
+      tmdb,
+      db,
+    });
+
+    assert.equal(summary.skippedExisting, 0);
+    assert.equal(summary.fetched, 3);
+    assert.equal(summary.inserted, 3);
+    assert.equal(summary.errors.length, 1);
+    assert.match(summary.errors[0], /Existing-id check failed/);
+  });
+
   it("re-ingesting TV upserts instead of duplicating (idempotent)", async () => {
     const tmdb = makeTmdb();
     const db = makeDb();

@@ -7,15 +7,20 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  FailoverProvider,
+  RotatingGeminiProvider,
+  createAiProvider,
   extractGeminiText,
   extractOpenRouterText,
   GeminiProvider,
+  isAiConfigured,
   OpenRouterProvider,
+  parseGeminiApiKeys,
   parseJsonObject,
   toGeminiSchema,
 } from "./providers";
 import { SEMANTIC_FIELDS_JSON_SCHEMA } from "./schema";
-import type { AiStructuredRequest } from "./types";
+import type { AiProvider, AiStructuredRequest } from "./types";
 
 const request: AiStructuredRequest = {
   systemPrompt: "Describe only, never rate.",
@@ -183,5 +188,267 @@ describe("OpenRouterProvider", () => {
     const provider = new OpenRouterProvider({ apiKey: "sk-test", fetchImpl });
 
     await assert.rejects(() => provider.generateStructured(request), /OpenRouter request failed: 500/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Key parsing
+// ---------------------------------------------------------------------------
+
+describe("parseGeminiApiKeys", () => {
+  it("collects the base key, numbered keys, and lists", () => {
+    const keys = parseGeminiApiKeys({
+      GEMINI_API_KEY: "key-1",
+      GEMINI_API_KEY_2: "key-2",
+      GEMINI_API_KEY_3: "key-3",
+      GEMINI_API_KEYS: "key-4, key-5",
+    } as Record<string, string>);
+
+    assert.deepEqual(keys, ["key-1", "key-2", "key-3", "key-4", "key-5"]);
+  });
+
+  it("deduplicates and trims keys", () => {
+    const keys = parseGeminiApiKeys({
+      GEMINI_API_KEY: " key-a ",
+      GEMINI_API_KEY_2: "key-a",
+      GEMINI_API_KEYS: "key-b,key-b,key-c",
+    } as Record<string, string>);
+
+    assert.deepEqual(keys, ["key-a", "key-b", "key-c"]);
+  });
+
+  it("works with only numbered keys configured", () => {
+    const keys = parseGeminiApiKeys({
+      GEMINI_API_KEY_2: "key-2",
+    } as Record<string, string>);
+
+    assert.deepEqual(keys, ["key-2"]);
+  });
+
+  it("returns an empty list when nothing is configured", () => {
+    assert.deepEqual(parseGeminiApiKeys({} as Record<string, string>), []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RotatingGeminiProvider
+// ---------------------------------------------------------------------------
+
+describe("RotatingGeminiProvider", () => {
+  function rotatingWithKeys(keys: string[]) {
+    const usedKeys: string[] = [];
+
+    const fetchImpl: typeof fetch = async (input, init) => {
+      const headers = new Headers(init?.headers);
+      usedKeys.push(headers.get("x-goog-api-key") ?? "");
+      return jsonResponse(true, {
+        candidates: [{ content: { parts: [{ text: '{"tone":"dark"}' }] } }],
+      });
+    };
+
+    const provider = new RotatingGeminiProvider({ apiKeys: keys, fetchImpl });
+
+    return { provider, usedKeys };
+  }
+
+  it("round-robins across the configured keys", async () => {
+    const { provider, usedKeys } = rotatingWithKeys(["key-a", "key-b"]);
+
+    await provider.generateStructured(request);
+    await provider.generateStructured(request);
+    await provider.generateStructured(request);
+
+    assert.deepEqual(usedKeys, ["key-a", "key-b", "key-a"]);
+  });
+
+  it("fails over to the next key when one key fails", async () => {
+    const usedKeys: string[] = [];
+
+    const fetchImpl: typeof fetch = async (input, init) => {
+      const headers = new Headers(init?.headers);
+      const key = headers.get("x-goog-api-key") ?? "";
+      usedKeys.push(key);
+
+      if (key === "key-a") {
+        return jsonResponse(false, { error: "rate limited" });
+      }
+
+      return jsonResponse(true, {
+        candidates: [{ content: { parts: [{ text: '{"tone":"calm"}' }] } }],
+      });
+    };
+
+    const provider = new RotatingGeminiProvider({
+      apiKeys: ["key-a", "key-b"],
+      fetchImpl,
+    });
+
+    const output = await provider.generateStructured(request);
+
+    assert.deepEqual(output, { tone: "calm" });
+    assert.deepEqual(usedKeys, ["key-a", "key-b"]);
+  });
+
+  it("throws only when every key has failed", async () => {
+    const fetchImpl: typeof fetch = async () => jsonResponse(false, { error: "boom" });
+    const provider = new RotatingGeminiProvider({
+      apiKeys: ["key-a", "key-b"],
+      fetchImpl,
+    });
+
+    await assert.rejects(() => provider.generateStructured(request), /All Gemini keys failed/);
+  });
+
+  it("requires at least one key", () => {
+    assert.throws(
+      () => new RotatingGeminiProvider({ apiKeys: [] }),
+      /requires at least one Gemini API key/
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FailoverProvider
+// ---------------------------------------------------------------------------
+
+describe("FailoverProvider", () => {
+  it("falls back to the second provider when the first fails", async () => {
+    const failing: AiProvider = {
+      name: "failing",
+      model: "x",
+      async generateStructured() {
+        throw new Error("nope");
+      },
+    };
+
+    const fallback: AiProvider = {
+      name: "fallback",
+      model: "y",
+      async generateStructured() {
+        return { ok: true };
+      },
+    };
+
+    const provider = new FailoverProvider([failing, fallback]);
+    assert.equal(provider.name, "failing->fallback");
+    assert.deepEqual(await provider.generateStructured(request), { ok: true });
+  });
+
+  it("throws when every provider fails", async () => {
+    const failing: AiProvider = {
+      name: "failing",
+      model: "x",
+      async generateStructured() {
+        throw new Error("nope");
+      },
+    };
+
+    const provider = new FailoverProvider([failing]);
+    await assert.rejects(() => provider.generateStructured(request), /All AI providers failed/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Factory
+// ---------------------------------------------------------------------------
+
+describe("createAiProvider", () => {
+  const okFetch: typeof fetch = async (input) => {
+    const url = String(input);
+
+    if (url.includes("generativelanguage")) {
+      return jsonResponse(true, {
+        candidates: [{ content: { parts: [{ text: '{"tone":"dark"}' }] } }],
+      });
+    }
+
+    return jsonResponse(true, {
+      choices: [{ message: { content: '{"tone":"bright"}' } }],
+    });
+  };
+
+  it("builds a rotating provider when multiple Gemini keys exist (auto)", () => {
+    const provider = createAiProvider(
+      {
+        GEMINI_API_KEY: "key-1",
+        GEMINI_API_KEY_2: "key-2",
+      } as unknown as NodeJS.ProcessEnv,
+      okFetch
+    );
+
+    assert.ok(provider instanceof RotatingGeminiProvider);
+  });
+
+  it("builds a failover provider when Gemini and OpenRouter both exist (auto)", () => {
+    const provider = createAiProvider(
+      {
+        GEMINI_API_KEY: "key-1",
+        OPENROUTER_API_KEY: "sk-test",
+      } as unknown as NodeJS.ProcessEnv,
+      okFetch
+    );
+
+    assert.ok(provider instanceof FailoverProvider);
+    assert.equal(provider.name, "gemini->openrouter");
+  });
+
+  it("uses Gemini only when explicitly requested, even with OpenRouter present", () => {
+    const provider = createAiProvider(
+      {
+        ORIEL_AI_PROVIDER: "gemini",
+        GEMINI_API_KEY: "key-1",
+        OPENROUTER_API_KEY: "sk-test",
+      } as unknown as NodeJS.ProcessEnv,
+      okFetch
+    );
+
+    assert.ok(provider instanceof GeminiProvider);
+  });
+
+  it("uses OpenRouter when explicitly requested", () => {
+    const provider = createAiProvider(
+      {
+        ORIEL_AI_PROVIDER: "openrouter",
+        GEMINI_API_KEY: "key-1",
+        OPENROUTER_API_KEY: "sk-test",
+      } as unknown as NodeJS.ProcessEnv,
+      okFetch
+    );
+
+    assert.ok(provider instanceof OpenRouterProvider);
+  });
+
+  it("falls back to OpenRouter when only it is configured", () => {
+    const provider = createAiProvider(
+      { OPENROUTER_API_KEY: "sk-test" } as unknown as NodeJS.ProcessEnv,
+      okFetch
+    );
+
+    assert.ok(provider instanceof OpenRouterProvider);
+  });
+
+  it("throws when nothing is configured", () => {
+    assert.throws(
+      () => createAiProvider({} as unknown as NodeJS.ProcessEnv, okFetch),
+      /No AI provider configured/
+    );
+  });
+});
+
+describe("isAiConfigured", () => {
+  it("is true with a single Gemini key", () => {
+    assert.equal(isAiConfigured({ GEMINI_API_KEY: "k" } as unknown as NodeJS.ProcessEnv), true);
+  });
+
+  it("is true with only a numbered Gemini key", () => {
+    assert.equal(isAiConfigured({ GEMINI_API_KEY_2: "k" } as unknown as NodeJS.ProcessEnv), true);
+  });
+
+  it("is true with only an OpenRouter key", () => {
+    assert.equal(isAiConfigured({ OPENROUTER_API_KEY: "k" } as unknown as NodeJS.ProcessEnv), true);
+  });
+
+  it("is false when nothing is configured", () => {
+    assert.equal(isAiConfigured({} as unknown as NodeJS.ProcessEnv), false);
   });
 });

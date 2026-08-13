@@ -17,6 +17,42 @@ export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
 export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini";
 
 // ---------------------------------------------------------------------------
+// Key rotation helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Collects every Gemini API key configured for this environment. Supports a
+ * single `GEMINI_API_KEY`, numbered keys (`GEMINI_API_KEY_2` .. `_9`), and a
+ * comma/space-separated `GEMINI_API_KEYS` list. Duplicates are removed and
+ * values are never logged or otherwise exposed.
+ */
+export function parseGeminiApiKeys(
+  env: Record<string, string | undefined> = process.env
+): string[] {
+  const keys: string[] = [];
+
+  const push = (value: string | undefined) => {
+    if (!value) return;
+
+    for (const part of value.split(/[\s,]+/)) {
+      const trimmed = part.trim();
+      if (trimmed) keys.push(trimmed);
+    }
+  };
+
+  push(env.GEMINI_API_KEY);
+
+  for (let i = 2; i <= 9; i += 1) {
+    push(env[`GEMINI_API_KEY_${i}`]);
+  }
+
+  push(env.GEMINI_API_KEYS);
+
+  return Array.from(new Set(keys));
+}
+
+
+// ---------------------------------------------------------------------------
 // JSON parsing helpers (exported for tests)
 // ---------------------------------------------------------------------------
 
@@ -166,6 +202,68 @@ export class GeminiProvider implements AiProvider {
 }
 
 // ---------------------------------------------------------------------------
+// Gemini — rotating multi-key provider
+// ---------------------------------------------------------------------------
+
+export interface RotatingGeminiProviderOptions {
+  /** Keys to rotate across. Defaults to all keys found in the environment. */
+  apiKeys?: string[];
+  model?: string;
+  fetchImpl?: typeof fetch;
+}
+
+/**
+ * Gemini provider backed by several API keys. Requests are spread across the
+ * keys round-robin (so quota is shared rather than exhausted on one key), and
+ * if a key fails the next key is tried for the same request. Only when every
+ * configured key has failed does the error surface — letting the enrichment
+ * job's existing backoff/retry handle it.
+ */
+export class RotatingGeminiProvider implements AiProvider {
+  readonly name = "gemini";
+  readonly model: string;
+  private readonly providers: GeminiProvider[];
+  private index = 0;
+
+  constructor(options: RotatingGeminiProviderOptions = {}) {
+    const apiKeys = options.apiKeys ?? parseGeminiApiKeys(process.env);
+
+    if (apiKeys.length === 0) {
+      throw new Error(
+        "RotatingGeminiProvider requires at least one Gemini API key"
+      );
+    }
+
+    this.model = options.model ?? process.env.ORIEL_GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
+    this.providers = apiKeys.map(
+      (apiKey) =>
+        new GeminiProvider({
+          apiKey,
+          model: this.model,
+          fetchImpl: options.fetchImpl,
+        })
+    );
+  }
+
+  async generateStructured(request: AiStructuredRequest): Promise<unknown> {
+    const failures: string[] = [];
+
+    for (let i = 0; i < this.providers.length; i += 1) {
+      const provider = this.providers[this.index % this.providers.length];
+      this.index += 1;
+
+      try {
+        return await provider.generateStructured(request);
+      } catch (err) {
+        failures.push(err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    throw new Error(`All Gemini keys failed (${failures.join(" | ")})`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // OpenRouter
 // ---------------------------------------------------------------------------
 
@@ -228,6 +326,46 @@ export class OpenRouterProvider implements AiProvider {
 }
 
 // ---------------------------------------------------------------------------
+// Failover (e.g. Gemini primary with OpenRouter fallback)
+// ---------------------------------------------------------------------------
+
+/**
+ * Tries providers in order until one succeeds. Used to fall back from Gemini
+ * to OpenRouter when auto-detection is enabled and both are configured.
+ */
+export class FailoverProvider implements AiProvider {
+  readonly name: string;
+  readonly model: string;
+  private readonly providers: AiProvider[];
+
+  constructor(providers: AiProvider[]) {
+    if (providers.length === 0) {
+      throw new Error("FailoverProvider requires at least one provider");
+    }
+
+    this.providers = providers;
+    this.name = providers.map((provider) => provider.name).join("->");
+    this.model = providers[0].model;
+  }
+
+  async generateStructured(request: AiStructuredRequest): Promise<unknown> {
+    const failures: string[] = [];
+
+    for (const provider of this.providers) {
+      try {
+        return await provider.generateStructured(request);
+      } catch (err) {
+        failures.push(
+          `${provider.name}: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    }
+
+    throw new Error(`All AI providers failed (${failures.join(" | ")})`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
@@ -244,25 +382,68 @@ function resolveProviderName(env: NodeJS.ProcessEnv): AiProviderName | null {
     );
   }
 
-  if (env.GEMINI_API_KEY) return "gemini";
+  if (parseGeminiApiKeys(env).length > 0) return "gemini";
   if (env.OPENROUTER_API_KEY) return "openrouter";
 
   return null;
 }
 
-/** Builds an AI provider from the environment (auto-selects available key). */
-export function createAiProvider(
-  env: NodeJS.ProcessEnv = process.env
+/** Builds a single Gemini provider, rotating when more than one key exists. */
+function buildGeminiProvider(
+  env: NodeJS.ProcessEnv,
+  fetchImpl?: typeof fetch
 ): AiProvider {
-  const name = resolveProviderName(env);
+  const apiKeys = parseGeminiApiKeys(env);
+  const model = env.ORIEL_GEMINI_MODEL;
 
-  if (name === "gemini") {
-    return new GeminiProvider({ apiKey: env.GEMINI_API_KEY });
+  if (apiKeys.length > 1) {
+    return new RotatingGeminiProvider({ apiKeys, model, fetchImpl });
   }
 
-  if (name === "openrouter") {
-    return new OpenRouterProvider({ apiKey: env.OPENROUTER_API_KEY });
+  return new GeminiProvider({ apiKey: apiKeys[0], model, fetchImpl });
+}
+
+/**
+ * Builds an AI provider from the environment.
+ *
+ * * `ORIEL_AI_PROVIDER=gemini` → Gemini (rotating when multiple keys exist).
+ * * `ORIEL_AI_PROVIDER=openrouter` → OpenRouter.
+ * * unset → auto-detect: Gemini primary with OpenRouter fallback when both
+ *   are configured, otherwise whichever single provider is available.
+ */
+export function createAiProvider(
+  env: NodeJS.ProcessEnv = process.env,
+  fetchImpl?: typeof fetch
+): AiProvider {
+  const requested = (env.ORIEL_AI_PROVIDER ?? "").trim().toLowerCase();
+
+  if (requested === "gemini") {
+    return buildGeminiProvider(env, fetchImpl);
   }
+
+  if (requested === "openrouter") {
+    return new OpenRouterProvider({ apiKey: env.OPENROUTER_API_KEY, fetchImpl });
+  }
+
+  if (requested) {
+    throw new Error(
+      `Unknown ORIEL_AI_PROVIDER "${requested}". Use "gemini" or "openrouter".`
+    );
+  }
+
+  // Auto-detect: Gemini primary, OpenRouter as fallback when both exist.
+  const geminiKeys = parseGeminiApiKeys(env);
+  const primary = geminiKeys.length > 0 ? buildGeminiProvider(env, fetchImpl) : null;
+  const fallback = env.OPENROUTER_API_KEY
+    ? new OpenRouterProvider({ apiKey: env.OPENROUTER_API_KEY, fetchImpl })
+    : null;
+
+  if (primary && fallback) {
+    return new FailoverProvider([primary, fallback]);
+  }
+
+  if (primary) return primary;
+  if (fallback) return fallback;
 
   throw new Error(
     "No AI provider configured. Set ORIEL_AI_PROVIDER (gemini|openrouter) " +
@@ -273,5 +454,9 @@ export function createAiProvider(
 /** Whether an AI provider can be constructed from the environment. */
 export function isAiConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
   const name = resolveProviderName(env);
-  return name === "gemini" ? Boolean(env.GEMINI_API_KEY) : Boolean(env.OPENROUTER_API_KEY);
+
+  if (name === "gemini") return parseGeminiApiKeys(env).length > 0;
+  if (name === "openrouter") return Boolean(env.OPENROUTER_API_KEY);
+
+  return parseGeminiApiKeys(env).length > 0 || Boolean(env.OPENROUTER_API_KEY);
 }
