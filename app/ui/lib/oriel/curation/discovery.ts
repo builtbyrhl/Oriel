@@ -158,6 +158,14 @@ export function parseDiscoveryRequest(raw: {
     input.limit = Number.isFinite(n) ? n : undefined;
   }
 
+  // A limit that is present but not a valid number must surface as an error,
+  // not silently fall back to the default. coerceLimit() already rejects
+  // non-integers with "limit must be a whole number", so route non-finite
+  // values through it.
+  if (raw.limit !== undefined && raw.limit !== null && input.limit === undefined) {
+    input.limit = Number.NaN;
+  }
+
   return resolveDiscoveryRequest(input);
 }
 

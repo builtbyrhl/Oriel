@@ -524,4 +524,12 @@ describe("discovery — parseDiscoveryRequest", () => {
     if (result.ok) return;
     assert.match(result.errors[0], /genre or mood/);
   });
+
+  it("rejects a non-numeric limit instead of silently defaulting", () => {
+    const result = parseDiscoveryRequest({ genre: "horror", limit: "abc" });
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.match(result.errors[0], /limit must be a whole number/);
+  });
 });
