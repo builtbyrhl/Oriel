@@ -54,6 +54,7 @@ export interface DiscoveryCandidate {
   title: string;
   releaseDate: string | null;
   voteAverage: number | null;
+  voteCount: number | null;
   popularity: number | null;
   genres: string[];
   /** Present only when the media item has been semantically enriched. */
@@ -84,6 +85,7 @@ export interface DiscoveryCandidateRow {
   title: string;
   release_date: string | null;
   vote_average: number | null;
+  vote_count: number | null;
   popularity: number | null;
   genres: string[];
   version: number | null;

@@ -225,6 +225,7 @@ function toCandidate(row: DiscoveryCandidateRow): DiscoveryCandidate {
     title: row.title,
     releaseDate: row.release_date,
     voteAverage: row.vote_average,
+    voteCount: row.vote_count,
     popularity: row.popularity,
     genres: row.genres ?? [],
     semantics,

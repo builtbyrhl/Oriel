@@ -16,11 +16,20 @@
 --   * limit     -> caps the returned pool size
 --
 -- The pool is deliberately NOT ranked, scored, diversified, personalized, or
--- reduced to final recommendations — later curation milestones do that. This
--- RPC stays provider- and UI-independent and returns the full intersection of
--- matching media for downstream ranking.
+-- reduced to final recommendations — later curation milestones do that. It
+-- carries the browse metadata the V1 scorer needs (including vote_count for
+-- confidence-adjusted quality) so the scoring layer stays pure and never has
+-- to hit the data layer again.
 
 begin;
+
+-- Drop first so the return type (added vote_count) can change when re-applied.
+drop function if exists public.oriel_discovery_candidates(
+  p_genre text,
+  p_mood text,
+  p_media_type text,
+  p_limit integer
+);
 
 create or replace function public.oriel_discovery_candidates(
   p_genre      text,
@@ -33,6 +42,7 @@ create or replace function public.oriel_discovery_candidates(
   title        text,
   release_date date,
   vote_average numeric,
+  vote_count   integer,
   popularity   numeric,
   genres       text[],
   version      integer,
@@ -48,6 +58,7 @@ as $$
          m.title,
          m.release_date,
          m.vote_average,
+         m.vote_count,
          m.popularity,
          m.genres,
          s.version,

@@ -52,7 +52,9 @@ async function run() {
   for (const r of [genre, mood, intersection, moviesOnly, noMatch]) {
     console.log(`${r.name} -> ${r.count} row(s)`);
     for (const row of r.rows.slice(0, 5)) {
-      console.log(`  [${row.media_type}] ${row.title} | genres=${row.genres?.join(",")} | version=${row.version}`);
+      console.log(
+        `  [${row.media_type}] ${row.title} | genres=${row.genres?.join(",")} | votes=${row.vote_count} | version=${row.version}`
+      );
     }
   }
 }
