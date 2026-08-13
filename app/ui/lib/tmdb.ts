@@ -120,3 +120,31 @@ export function discoverMovies(params: TmdbDiscoverParams = {}) {
 
   return tmdbFetch(`/discover/movie${qs ? `?${qs}` : ""}`);
 }
+
+export interface TmdbDiscoverTvParams {
+  page?: number;
+  genre_id?: number;
+  min_vote_count?: number;
+  first_air_date_year?: number;
+  sort_by?: string;
+}
+
+/** Fetches full details for a single TMDB TV series. */
+export function getTvDetails(id: number | string) {
+  return tmdbFetch(`/tv/${id}`);
+}
+
+/** Fetches a page of discoverable TV series via the TMDB /discover endpoint. */
+export function discoverTvShows(params: TmdbDiscoverTvParams = {}) {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null) {
+      query.set(key, String(value));
+    }
+  }
+
+  const qs = query.toString();
+
+  return tmdbFetch(`/discover/tv${qs ? `?${qs}` : ""}`);
+}

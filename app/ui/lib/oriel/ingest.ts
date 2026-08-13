@@ -1,39 +1,49 @@
-// Oriel Movie Data Engine — ingestion pipeline and production gateways.
+// Oriel Media Data Engine — ingestion pipeline and production gateways.
 //
 // The engine is dependency-injected so it can be exercised with mock TMDB and
 // Supabase clients in unit tests, and wired to real clients in production.
 //
 // Pipeline (per discovered candidate):
-//   TMDB detail → normalize → validate → upsert into Supabase (on tmdb_id)
+//   TMDB detail → normalize → validate → upsert into Supabase (on media_type + tmdb_id)
 //
 // Guarantees:
-//   * idempotent — running twice never duplicates rows (upsert on tmdb_id)
-//   * failure-isolated — one bad movie never aborts the batch
-//   * reusable — supports multiple discovery sources
+//   * idempotent — running twice never duplicates rows (upsert on media_type,tmdb_id)
+//   * failure-isolated — one bad record never aborts the batch
+//   * reusable — supports multiple discovery sources and both media types
+//
+// Movies and TV series are ingested through the same pipeline; `mediaType`
+// selects which TMDB endpoints and normalizers to use.
 
-import { getMovieDetails, discoverMovies } from "../tmdb";
+import {
+  discoverMovies,
+  discoverTvShows,
+  getMovieDetails,
+  getTvDetails,
+} from "../tmdb";
 import {
   getTrendingMovies,
   getPopularMovies,
   getTopRatedMovies,
 } from "../movies";
+import { getTrendingTv, getPopularTv, getTopRatedTv } from "../tv";
 import { getServerSupabaseClient } from "../supabase/server";
-import { normalizeMovieDetail } from "./normalize";
-import { validateMovieRecord } from "./validate";
+import { normalizeMovieDetail, normalizeTvDetail } from "./normalize";
+import { validateMediaRecord } from "./validate";
 import type {
   DiscoverySource,
   IngestionSummary,
+  MediaType,
   MovieDbGateway,
-  OrielMovieRecord,
+  OrielMediaRecord,
   TmdbGateway,
   TmdbListResult,
   TmdbMovieDetail,
-  TmdbMovieSummary,
+  TmdbTvDetail,
   UpsertOutcome,
 } from "./types";
 
 export const MOVIES_TABLE = "oriel_movies";
-export const TMDB_ID_CONFLICT = "tmdb_id";
+export const MEDIA_ID_CONFLICT = "media_type,tmdb_id";
 export const DEFAULT_BATCH_SIZE = 20;
 const DEFAULT_CONCURRENCY = 4;
 
@@ -41,17 +51,46 @@ const DEFAULT_CONCURRENCY = 4;
 // Production gateways
 // ---------------------------------------------------------------------------
 
-/** TMDB gateway backed by the existing lib/tmdb.ts and lib/movies.ts clients. */
+/** TMDB gateway backed by the existing lib/tmdb.ts, lib/movies.ts and lib/tv.ts clients. */
 export const tmdbHttpGateway: TmdbGateway = {
   async discoverCandidates(
     source: DiscoverySource,
     options?: {
+      mediaType?: MediaType;
       page?: number;
       genreId?: number;
       minVoteCount?: number;
       year?: number;
     }
-  ): Promise<TmdbListResult<TmdbMovieSummary>> {
+  ): Promise<TmdbListResult> {
+    const mediaType = options?.mediaType ?? "movie";
+
+    if (mediaType === "tv") {
+      if (source === "discover") {
+        const data = await discoverTvShows({
+          page: options?.page ?? 1,
+          genre_id: options?.genreId,
+          min_vote_count: options?.minVoteCount,
+          first_air_date_year: options?.year,
+          sort_by: "popularity.desc",
+        });
+
+        return data as TmdbListResult;
+      }
+
+      let results: unknown[];
+
+      if (source === "popular") {
+        results = await getPopularTv();
+      } else if (source === "top_rated") {
+        results = await getTopRatedTv();
+      } else {
+        results = await getTrendingTv();
+      }
+
+      return { results } as TmdbListResult;
+    }
+
     if (source === "discover") {
       const data = await discoverMovies({
         page: options?.page ?? 1,
@@ -61,7 +100,7 @@ export const tmdbHttpGateway: TmdbGateway = {
         sort_by: "popularity.desc",
       });
 
-      return data as TmdbListResult<TmdbMovieSummary>;
+      return data as TmdbListResult;
     }
 
     // trending / popular / top_rated reuse the existing lib/movies helpers,
@@ -76,26 +115,35 @@ export const tmdbHttpGateway: TmdbGateway = {
       results = await getTrendingMovies();
     }
 
-    return { results } as TmdbListResult<TmdbMovieSummary>;
+    return { results } as TmdbListResult;
   },
 
-  fetchMovieDetail: async (tmdbId: number): Promise<TmdbMovieDetail | null> => {
-    const detail = await getMovieDetails(tmdbId);
+  fetchDetail: async (
+    tmdbId: number,
+    mediaType: MediaType
+  ): Promise<TmdbMovieDetail | TmdbTvDetail | null> => {
+    const detail =
+      mediaType === "tv"
+        ? await getTvDetails(tmdbId)
+        : await getMovieDetails(tmdbId);
 
     if (!detail || typeof detail !== "object") return null;
 
-    return detail as TmdbMovieDetail;
+    return detail as TmdbMovieDetail | TmdbTvDetail;
   },
 };
 
 /**
- * Supabase movies-table gateway backed by the server (service-role) client.
+ * Supabase media-table gateway backed by the server (service-role) client.
  * Whether to reach the fetch-derived summary endpoints at all is handled by
  * the caller; here we only need detail resolution, which works for every
  * source because discovery returns TMDB ids.
  */
 export const supabaseMovieDbGateway: MovieDbGateway = {
-  async existingTmdbIds(ids: number[]): Promise<Set<number>> {
+  async existingTmdbIds(
+    ids: number[],
+    mediaType: MediaType
+  ): Promise<Set<number>> {
     if (ids.length === 0) return new Set();
 
     const unique = Array.from(new Set(ids));
@@ -103,10 +151,11 @@ export const supabaseMovieDbGateway: MovieDbGateway = {
     const { data, error } = await getServerSupabaseClient()
       .from(MOVIES_TABLE)
       .select("tmdb_id")
+      .eq("media_type", mediaType)
       .in("tmdb_id", unique);
 
     if (error) {
-      throw new Error(`Unable to check existing movies: ${error.message}`);
+      throw new Error(`Unable to check existing media: ${error.message}`);
     }
 
     return new Set(
@@ -115,18 +164,28 @@ export const supabaseMovieDbGateway: MovieDbGateway = {
     );
   },
 
-  async upsertMovies(records: OrielMovieRecord[]): Promise<UpsertOutcome> {
+  async upsertMovies(records: OrielMediaRecord[]): Promise<UpsertOutcome> {
     if (records.length === 0) {
       return { inserted: 0, updated: 0, matched: records.length, error: null };
     }
 
     // Ask which records already exist to produce accurate inserted/updated
-    // counts for reporting.
-    const ids = records.map((record) => record.tmdb_id);
-    let existing: Set<number>;
+    // counts for reporting. Existence is scoped per (media_type, tmdb_id).
+    const existing = new Set<string>();
 
     try {
-      existing = await this.existingTmdbIds(ids);
+      const byType = new Map<MediaType, number[]>();
+
+      for (const record of records) {
+        const ids = byType.get(record.media_type) ?? [];
+        ids.push(record.tmdb_id);
+        byType.set(record.media_type, ids);
+      }
+
+      for (const [mediaType, ids] of byType) {
+        const found = await this.existingTmdbIds(ids, mediaType);
+        for (const id of found) existing.add(`${mediaType}:${id}`);
+      }
     } catch (err) {
       return {
         inserted: 0,
@@ -139,7 +198,7 @@ export const supabaseMovieDbGateway: MovieDbGateway = {
     const { error } = await getServerSupabaseClient()
       .from(MOVIES_TABLE)
       .upsert(records, {
-        onConflict: TMDB_ID_CONFLICT,
+        onConflict: MEDIA_ID_CONFLICT,
         ignoreDuplicates: false,
       });
 
@@ -156,7 +215,7 @@ export const supabaseMovieDbGateway: MovieDbGateway = {
     let updated = 0;
 
     for (const record of records) {
-      if (existing.has(record.tmdb_id)) {
+      if (existing.has(`${record.media_type}:${record.tmdb_id}`)) {
         updated += 1;
       } else {
         inserted += 1;
@@ -173,6 +232,7 @@ export const supabaseMovieDbGateway: MovieDbGateway = {
 
 export interface IngestionOptions {
   source: DiscoverySource;
+  mediaType?: MediaType;
   limit?: number;
   page?: number;
   genreId?: number;
@@ -254,10 +314,12 @@ export async function runIngestion(
 ): Promise<IngestionSummary> {
   const deps = resolveIngestionDeps({ tmdb: options.tmdb, db: options.db });
   const source = options.source;
+  const mediaType = options.mediaType ?? "movie";
   const limit = Math.max(1, Math.min(options.limit ?? DEFAULT_BATCH_SIZE, 100));
   const concurrency = options.concurrency ?? DEFAULT_CONCURRENCY;
 
   const summary: IngestionSummary = {
+    mediaType,
     source,
     requested: limit,
     discovered: 0,
@@ -272,6 +334,7 @@ export async function runIngestion(
 
   try {
     const listing = await deps.tmdb.discoverCandidates(source, {
+      mediaType,
       page: options.page ?? 1,
       genreId: options.genreId,
       minVoteCount: options.minVoteCount,
@@ -280,29 +343,31 @@ export async function runIngestion(
 
     const discovered =
       (listing.results ?? []).filter(
-        (movie): movie is TmdbMovieSummary =>
-          typeof movie?.id === "number" &&
-          Number.isFinite(movie.id)
+        (candidate) =>
+          typeof candidate?.id === "number" &&
+          Number.isFinite(candidate.id)
       ).slice(0, limit) ?? [];
 
     summary.discovered = discovered.length;
 
     const fetched = await mapLimit(
-      discovered.map((movie) => movie.id),
+      discovered.map((candidate) => candidate.id),
       concurrency,
       async (tmdbId) => {
-        const detail: TmdbMovieDetail | null =
-          await deps.tmdb.fetchMovieDetail(tmdbId);
+        const detail = await deps.tmdb.fetchDetail(tmdbId, mediaType);
 
         if (!detail) return null;
 
-        const normalized = normalizeMovieDetail(detail);
+        const normalized =
+          mediaType === "tv"
+            ? normalizeTvDetail(detail)
+            : normalizeMovieDetail(detail);
 
         if (!normalized.ok || !normalized.value) {
           return null;
         }
 
-        const validation = validateMovieRecord(normalized.value);
+        const validation = validateMediaRecord(normalized.value);
 
         return validation.valid ? normalized.value : null;
       }
@@ -345,23 +410,36 @@ export async function runIngestion(
   return summary;
 }
 
-/** Convenience: validates that a TMDB id exists and returns a normalized record. */
-export async function ingestSingleMovie(
+/**
+ * Convenience: validates that a TMDB media item exists and returns a
+ * normalized record.
+ */
+export async function ingestSingleMedia(
   tmdbId: number,
+  mediaType: MediaType = "movie",
   deps: Partial<IngestionDeps> = {}
-): Promise<OrielMovieRecord | null> {
+): Promise<OrielMediaRecord | null> {
   const resolved = resolveIngestionDeps(deps);
-  const detail = await resolved.tmdb.fetchMovieDetail(tmdbId);
+  const detail = await resolved.tmdb.fetchDetail(tmdbId, mediaType);
 
   if (!detail) return null;
 
-  const normalized = normalizeMovieDetail(detail);
+  const normalized =
+    mediaType === "tv" ? normalizeTvDetail(detail) : normalizeMovieDetail(detail);
 
   if (!normalized.ok || !normalized.value) return null;
 
-  const validation = validateMovieRecord(normalized.value);
+  const validation = validateMediaRecord(normalized.value);
 
   if (!validation.valid) return null;
 
   return normalized.value;
+}
+
+/** Backwards-compatible movie-only convenience. */
+export async function ingestSingleMovie(
+  tmdbId: number,
+  deps: Partial<IngestionDeps> = {}
+): Promise<OrielMediaRecord | null> {
+  return ingestSingleMedia(tmdbId, "movie", deps);
 }

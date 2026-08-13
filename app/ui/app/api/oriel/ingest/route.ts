@@ -12,7 +12,7 @@
 
 import { NextResponse } from "next/server";
 import { runIngestion } from "@/lib/oriel/ingest";
-import type { DiscoverySource } from "@/lib/oriel/types";
+import type { DiscoverySource, MediaType } from "@/lib/oriel/types";
 
 const INGESTION_TOKEN = process.env.ORIEL_INGESTION_TOKEN;
 
@@ -22,6 +22,8 @@ const VALID_SOURCES: DiscoverySource[] = [
   "top_rated",
   "discover",
 ];
+
+const VALID_MEDIA_TYPES: MediaType[] = ["movie", "tv"];
 
 function parsePositiveInt(raw: unknown, fallback: number | null): number | null {
   if (typeof raw !== "string" && typeof raw !== "number") return fallback;
@@ -68,6 +70,7 @@ export async function POST(request: Request) {
 
   const payload = body as {
     source?: unknown;
+    mediaType?: unknown;
     limit?: unknown;
     page?: unknown;
     genreId?: unknown;
@@ -86,6 +89,17 @@ export async function POST(request: Request) {
     );
   }
 
+  const mediaType = (payload?.mediaType ?? "movie") as MediaType;
+
+  if (!VALID_MEDIA_TYPES.includes(mediaType)) {
+    return NextResponse.json(
+      {
+        error: `mediaType must be one of: ${VALID_MEDIA_TYPES.join(", ")}`,
+      },
+      { status: 400 }
+    );
+  }
+
   const limit = parsePositiveInt(payload?.limit, 20);
   const page = parsePositiveInt(payload?.page, 1);
   const genreId = parsePositiveInt(payload?.genreId, null);
@@ -95,6 +109,7 @@ export async function POST(request: Request) {
   try {
     const summary = await runIngestion({
       source,
+      mediaType,
       limit: limit ?? 20,
       page: page ?? 1,
       genreId: genreId ?? undefined,

@@ -7,6 +7,7 @@
 //
 // Usage:
 //   node scripts/ingest.ts --source=trending --limit=20
+//   node scripts/ingest.ts --mediaType=tv --source=trending --limit=20
 //   node scripts/ingest.ts --source=discover --genreId=18
 //   node scripts/ingest.ts --source=popular --limit=50 --minVoteCount=50
 //
@@ -18,10 +19,11 @@
 
 import { runIngestion } from "../lib/oriel/ingest";
 import { isServerSupabaseConfigured } from "../lib/supabase/server";
-import type { DiscoverySource } from "../lib/oriel/types";
+import type { DiscoverySource, MediaType } from "../lib/oriel/types";
 
 type CliArgs = {
   source: DiscoverySource;
+  mediaType: MediaType;
   limit: number;
   page: number;
   genreId?: number;
@@ -32,6 +34,7 @@ type CliArgs = {
 function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
     source: "trending",
+    mediaType: "movie",
     limit: 20,
     page: 1,
   };
@@ -47,6 +50,11 @@ function parseArgs(argv: string[]): CliArgs {
           ["trending", "popular", "top_rated", "discover"].includes(val)
         ) {
           args.source = val as DiscoverySource;
+        }
+        break;
+      case "mediaType":
+        if (val && ["movie", "tv"].includes(val)) {
+          args.mediaType = val as MediaType;
         }
         break;
       case "limit": {
@@ -91,7 +99,7 @@ async function main() {
   }
 
   console.log(
-    `[oriel] ingesting source=${args.source} limit=${args.limit} page=${args.page}` +
+    `[oriel] ingesting mediaType=${args.mediaType} source=${args.source} limit=${args.limit} page=${args.page}` +
       (args.genreId ? ` genreId=${args.genreId}` : "") +
       (args.minVoteCount ? ` minVoteCount=${args.minVoteCount}` : "") +
       (args.year ? ` year=${args.year}` : "")
@@ -99,6 +107,7 @@ async function main() {
 
   const summary = await runIngestion({
     source: args.source,
+    mediaType: args.mediaType,
     limit: args.limit,
     page: args.page,
     genreId: args.genreId,
@@ -108,6 +117,7 @@ async function main() {
 
   console.log();
   console.log("[oriel] ingestion summary");
+  console.log("  mediaType       ", summary.mediaType);
   console.log("  source          ", summary.source);
   console.log("  requested       ", summary.requested);
   console.log("  discovered      ", summary.discovered);

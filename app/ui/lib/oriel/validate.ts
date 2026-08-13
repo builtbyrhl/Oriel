@@ -1,9 +1,10 @@
-// Oriel Movie Data Engine — validation.
+// Oriel Media Data Engine — validation.
 //
-// Decides whether a normalized OrielMovieRecord is eligible for persistence.
+// Decides whether a normalized OrielMediaRecord is eligible for persistence.
 // Normalization coerces types; validation enforces the minimum integrity bar.
+// Movies and TV series share the same contract.
 
-import type { MovieValidationResult, OrielMovieRecord } from "./types";
+import type { OrielMediaRecord, ValidationResult } from "./types";
 
 /** Minimum acceptable length for a stored title. */
 const MIN_TITLE_LENGTH = 1;
@@ -11,40 +12,50 @@ const MIN_TITLE_LENGTH = 1;
 const MAX_VOTE_AVERAGE = 10;
 
 /**
- * Validates a normalized movie record against the required-field contract.
+ * Validates a normalized media record against the required-field contract.
  *
  * Rules:
  *   - tmdb_id must be a positive integer (primary external identity)
  *   - title must be a non-empty string
  *   - vote_average, when present, must remain within the TMDB 0-10 scale
  *   - optional fields that are null are tolerated (their absence is not a
- *     reason to reject the movie)
+ *     reason to reject the record)
  *
  * Missing overview/posters etc. is intentionally NOT an error at this layer:
  * those records may still be useful to the curation engine, which applies its
  * own quality thresholds later.
  */
-export function validateMovieRecord(
-  movie: OrielMovieRecord
-): MovieValidationResult {
+export function validateMediaRecord(
+  record: OrielMediaRecord
+): ValidationResult {
   const errors: string[] = [];
 
-  if (!Number.isInteger(movie.tmdb_id) || movie.tmdb_id <= 0) {
-    errors.push(`Invalid tmdb_id: ${String(movie.tmdb_id)}`);
-  }
-
-  if (typeof movie.title !== "string" || movie.title.trim().length < MIN_TITLE_LENGTH) {
-    errors.push(`Movie ${movie.tmdb_id} has no usable title`);
+  if (!Number.isInteger(record.tmdb_id) || record.tmdb_id <= 0) {
+    errors.push(`Invalid tmdb_id: ${String(record.tmdb_id)}`);
   }
 
   if (
-    movie.vote_average !== null &&
-    (movie.vote_average < 0 || movie.vote_average > MAX_VOTE_AVERAGE)
+    typeof record.title !== "string" ||
+    record.title.trim().length < MIN_TITLE_LENGTH
+  ) {
+    errors.push(`Record ${record.tmdb_id} has no usable title`);
+  }
+
+  if (
+    record.vote_average !== null &&
+    (record.vote_average < 0 || record.vote_average > MAX_VOTE_AVERAGE)
   ) {
     errors.push(
-      `Movie ${movie.tmdb_id} has out-of-range vote_average (${movie.vote_average})`
+      `Record ${record.tmdb_id} has out-of-range vote_average (${record.vote_average})`
     );
   }
 
   return { valid: errors.length === 0, errors };
+}
+
+/** Backwards-compatible alias. */
+export function validateMovieRecord(
+  record: OrielMediaRecord
+): ValidationResult {
+  return validateMediaRecord(record);
 }

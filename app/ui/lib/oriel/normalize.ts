@@ -1,14 +1,17 @@
-// Oriel Movie Data Engine — normalization.
+// Oriel Media Data Engine — normalization.
 //
 // Transforms TMDB detail/summary responses into the Oriel database model.
+// Movies and TV series share one record shape (public.oriel_movies) and differ
+// only in which TMDB fields feed it; movie- and TV-specific fields are coerced
+// safely so a malformed or missing value can never crash the pipeline.
 // The focus is data-type safety: malformed or missing fields are coerced to
 // safe values instead of throwing, and a validation pass upstream decides
 // whether the normalized record is actually worth persisting.
 
 import type {
-  MovieNormalizationResult,
-  OrielMovieRecord,
-  TmdbMovieDetail,
+  MediaType,
+  NormalizationResult,
+  OrielMediaRecord,
   TmdbGenre,
 } from "./types";
 
@@ -17,6 +20,7 @@ const OVERVIEW_MAX = 2000;
 const TITLE_MAX = 300;
 const POSTER_MAX = 255;
 const BACKDROP_MAX = 255;
+const MAX_LIST_ITEMS = 20;
 
 function cleanString(
   value: unknown,
@@ -40,6 +44,11 @@ function cleanNumber(value: unknown): number | null {
   }
 
   return null;
+}
+
+function cleanInteger(value: unknown): number | null {
+  const n = cleanNumber(value);
+  return n === null ? null : Math.trunc(n);
 }
 
 function clampToRange(
@@ -69,16 +78,16 @@ function cleanDate(value: unknown): string | null {
   return null;
 }
 
-function cleanGenres(detail: TmdbMovieDetail): {
-  ids: number[];
-  names: string[];
-} {
+function cleanGenres(
+  genres: unknown,
+  genreIds: unknown
+): { ids: number[]; names: string[] } {
   const ids: number[] = [];
   const names: string[] = [];
 
   // Detail responses carry { id, name } objects.
-  if (Array.isArray(detail.genres)) {
-    for (const genre of detail.genres as unknown[]) {
+  if (Array.isArray(genres)) {
+    for (const genre of genres as unknown[]) {
       const g = genre as Partial<TmdbGenre>;
 
       if (typeof g?.id === "number" && Number.isFinite(g.id)) {
@@ -91,8 +100,8 @@ function cleanGenres(detail: TmdbMovieDetail): {
   }
 
   // List responses carry genre_ids only.
-  if (ids.length === 0 && Array.isArray(detail.genre_ids)) {
-    for (const id of detail.genre_ids) {
+  if (ids.length === 0 && Array.isArray(genreIds)) {
+    for (const id of genreIds) {
       if (typeof id === "number" && Number.isFinite(id)) {
         ids.push(Math.trunc(id));
       }
@@ -102,11 +111,14 @@ function cleanGenres(detail: TmdbMovieDetail): {
   return { ids, names };
 }
 
-function cleanOriginCountries(detail: TmdbMovieDetail): string[] {
+function cleanOriginCountries(
+  productionCountries: unknown,
+  originCountry: unknown
+): string[] {
   const countries: string[] = [];
 
-  if (Array.isArray(detail.production_countries)) {
-    for (const c of detail.production_countries as unknown[]) {
+  if (Array.isArray(productionCountries)) {
+    for (const c of productionCountries as unknown[]) {
       const item = c as { iso_3166_1?: string };
 
       const code = cleanString(item?.iso_3166_1, 4);
@@ -114,26 +126,87 @@ function cleanOriginCountries(detail: TmdbMovieDetail): string[] {
     }
   }
 
-  if (countries.length === 0 && Array.isArray(detail.origin_country)) {
-    for (const codeRaw of detail.origin_country) {
+  if (countries.length === 0 && Array.isArray(originCountry)) {
+    for (const codeRaw of originCountry) {
       const code = cleanString(codeRaw, 4);
       if (code) countries.push(code);
     }
   }
 
-  return countries.slice(0, 20);
+  return countries.slice(0, MAX_LIST_ITEMS);
+}
+
+function cleanNetworkNames(value: unknown): string[] {
+  const names: string[] = [];
+
+  if (Array.isArray(value)) {
+    for (const item of value as unknown[]) {
+      const name = cleanString((item as { name?: unknown })?.name, 80);
+      if (name) names.push(name);
+    }
+  }
+
+  return names.slice(0, MAX_LIST_ITEMS);
+}
+
+function firstEpisodeRuntime(value: unknown): number | null {
+  if (!Array.isArray(value)) return null;
+
+  for (const item of value) {
+    const n = cleanNumber(item);
+    if (n !== null) return n;
+  }
+
+  return null;
 }
 
 /**
- * Normalizes a TMDB movie detail response into an OrielMovieRecord.
+ * Fields the normalizer reads off a TMDB payload. Loosely typed on purpose:
+ * both movie and TV responses are coerced through the same shape so any
+ * missing/mis-typed field degrades to a safe default.
+ */
+interface NormalizeSource {
+  id?: unknown;
+  title?: unknown;
+  original_title?: unknown;
+  name?: unknown;
+  original_name?: unknown;
+  overview?: unknown;
+  poster_path?: unknown;
+  backdrop_path?: unknown;
+  release_date?: unknown;
+  first_air_date?: unknown;
+  last_air_date?: unknown;
+  vote_average?: unknown;
+  vote_count?: unknown;
+  popularity?: unknown;
+  genres?: unknown;
+  genre_ids?: unknown;
+  original_language?: unknown;
+  adult?: unknown;
+  video?: unknown;
+  runtime?: unknown;
+  episode_run_time?: unknown;
+  production_countries?: unknown;
+  origin_country?: unknown;
+  status?: unknown;
+  number_of_episodes?: unknown;
+  number_of_seasons?: unknown;
+  in_production?: unknown;
+  networks?: unknown;
+}
+
+/**
+ * Normalizes a TMDB payload into an OrielMediaRecord for the given media type.
  *
  * Never throws. Malformed input yields `ok: false` with a stable `tmdbId`
  * so the caller can report/deduplicate failures.
  */
-export function normalizeMovieDetail(
-  raw: unknown
-): MovieNormalizationResult<OrielMovieRecord> {
-  const detail = raw as Partial<TmdbMovieDetail>;
+function buildRecord(
+  raw: unknown,
+  mediaType: MediaType
+): NormalizationResult<OrielMediaRecord> {
+  const detail = raw as NormalizeSource;
 
   if (!detail || typeof detail !== "object") {
     return { ok: false, errors: ["TMDB response was not an object"] };
@@ -147,48 +220,70 @@ export function normalizeMovieDetail(
   if (tmdbId === undefined) {
     return {
       ok: false,
-      errors: ["TMDB movie is missing a valid numeric id"],
+      errors: [`TMDB ${mediaType} is missing a valid numeric id`],
     };
   }
 
-  const genres = cleanGenres(detail as TmdbMovieDetail);
+  const isTv = mediaType === "tv";
+  const genres = cleanGenres(detail.genres, detail.genre_ids);
   const originCountries = cleanOriginCountries(
-    detail as TmdbMovieDetail
+    detail.production_countries,
+    detail.origin_country
   );
+  const runtime = isTv
+    ? firstEpisodeRuntime(detail.episode_run_time)
+    : detail.runtime;
 
-  const record: OrielMovieRecord = {
+  const record: OrielMediaRecord = {
+    media_type: mediaType,
     tmdb_id: tmdbId,
-    title: cleanString(detail.title, TITLE_MAX) ?? "",
-    original_title: cleanString(detail.original_title, TITLE_MAX),
+    title: cleanString(isTv ? detail.name : detail.title, TITLE_MAX) ?? "",
+    original_title: cleanString(
+      isTv ? detail.original_name : detail.original_title,
+      TITLE_MAX
+    ),
     overview: cleanString(detail.overview, OVERVIEW_MAX),
     poster_path: cleanString(detail.poster_path, POSTER_MAX),
     backdrop_path: cleanString(detail.backdrop_path, BACKDROP_MAX),
-    release_date: cleanDate(detail.release_date),
-    vote_average: clampToRange(
-      cleanNumber(detail.vote_average),
-      0,
-      10
-    ),
+    release_date: cleanDate(isTv ? detail.first_air_date : detail.release_date),
+    vote_average: clampToRange(cleanNumber(detail.vote_average), 0, 10),
     vote_count: cleanNumber(detail.vote_count),
     popularity: clampToRange(cleanNumber(detail.popularity), 0, null),
     genre_ids: genres.ids,
     genres: genres.names,
     original_language: cleanString(detail.original_language, 10),
-    adult:
-      typeof detail.adult === "boolean"
-        ? detail.adult
-        : false,
-    video:
-      typeof detail.video === "boolean"
-        ? detail.video
-        : false,
+    adult: isTv ? false : typeof detail.adult === "boolean" ? detail.adult : false,
+    video: isTv ? false : typeof detail.video === "boolean" ? detail.video : false,
     runtime:
-      typeof detail.runtime === "number" && Number.isFinite(detail.runtime)
-        ? Math.trunc(detail.runtime)
+      typeof runtime === "number" && Number.isFinite(runtime)
+        ? Math.trunc(runtime)
         : null,
     origin_countries: originCountries,
     status: cleanString(detail.status, 30),
+    number_of_episodes: isTv ? cleanInteger(detail.number_of_episodes) : null,
+    number_of_seasons: isTv ? cleanInteger(detail.number_of_seasons) : null,
+    last_air_date: isTv ? cleanDate(detail.last_air_date) : null,
+    in_production: isTv
+      ? typeof detail.in_production === "boolean"
+        ? detail.in_production
+        : false
+      : false,
+    networks: isTv ? cleanNetworkNames(detail.networks) : [],
   };
 
   return { ok: true, value: record, errors: [], tmdbId };
+}
+
+/** Normalizes a TMDB movie detail response into an OrielMediaRecord. */
+export function normalizeMovieDetail(
+  raw: unknown
+): NormalizationResult<OrielMediaRecord> {
+  return buildRecord(raw, "movie");
+}
+
+/** Normalizes a TMDB TV detail response into an OrielMediaRecord. */
+export function normalizeTvDetail(
+  raw: unknown
+): NormalizationResult<OrielMediaRecord> {
+  return buildRecord(raw, "tv");
 }

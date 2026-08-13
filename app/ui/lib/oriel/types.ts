@@ -1,4 +1,4 @@
-// Oriel Movie Data Engine — core type definitions.
+// Oriel Media Data Engine — core type definitions.
 //
 // Three representations are deliberately separated:
 //   1. TMDB external representation (what the TMDB API returns)
@@ -8,6 +8,9 @@
 // ---------------------------------------------------------------------------
 // 1. External TMDB representation
 // ---------------------------------------------------------------------------
+
+/** The two media kinds Oriel ingests from TMDB. */
+export type MediaType = "movie" | "tv";
 
 export interface TmdbGenre {
   id: number;
@@ -41,14 +44,44 @@ export interface TmdbMovieDetail extends TmdbMovieSummary {
   production_countries?: Array<{ iso_3166_1?: string; name?: string }>;
 }
 
-export interface TmdbListResult<T = TmdbMovieSummary> {
+/** A TV series as returned by TMDB list endpoints (discover, trending, popular, top_rated). */
+export interface TmdbTvSummary {
+  id: number;
+  name: string;
+  original_name?: string;
+  overview?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  first_air_date?: string;
+  vote_average?: number;
+  vote_count?: number;
+  popularity?: number;
+  genre_ids?: number[];
+  original_language?: string;
+  origin_country?: string[];
+}
+
+/** A TV series as returned by the TMDB `/tv/{id}` detail endpoint. */
+export interface TmdbTvDetail extends TmdbTvSummary {
+  genres?: TmdbGenre[];
+  status?: string;
+  in_production?: boolean;
+  last_air_date?: string;
+  number_of_episodes?: number;
+  number_of_seasons?: number;
+  episode_run_time?: number[];
+  networks?: Array<{ id?: number; name?: string; origin_country?: string }>;
+  production_countries?: Array<{ iso_3166_1?: string; name?: string }>;
+}
+
+export interface TmdbListResult<T = TmdbMovieSummary | TmdbTvSummary> {
   page?: number;
   total_pages?: number;
   total_results?: number;
   results?: T[];
 }
 
-/** Sources the ingestion layer can discover candidate movies from. */
+/** Sources the ingestion layer can discover candidate media from. */
 export type DiscoverySource =
   | "trending"
   | "popular"
@@ -59,28 +92,38 @@ export type DiscoverySource =
 // 2. Internal database representation (public.oriel_movies)
 // ---------------------------------------------------------------------------
 
-export interface OrielMovieRecord {
+export interface OrielMediaRecord {
+  media_type: MediaType;
   tmdb_id: number;
   title: string;
   original_title: string | null;
   overview: string | null;
   poster_path: string | null;
   backdrop_path: string | null;
-  release_date: string | null; // ISO date (YYYY-MM-DD)
+  release_date: string | null; // movie release_date / tv first_air_date (YYYY-MM-DD)
   vote_average: number | null;
   vote_count: number | null;
   popularity: number | null;
   genre_ids: number[];
   genres: string[];
   original_language: string | null;
-  adult: boolean;
-  video: boolean;
-  runtime: number | null;
+  adult: boolean; // movie-specific, always false for tv
+  video: boolean; // movie-specific, always false for tv
+  runtime: number | null; // movie runtime / first tv episode runtime (minutes)
   origin_countries: string[];
   status: string | null;
+  // TV-specific fields (null / false / empty for movies)
+  number_of_episodes: number | null;
+  number_of_seasons: number | null;
+  last_air_date: string | null;
+  in_production: boolean;
+  networks: string[];
 }
 
-export interface OrielMovieRow extends OrielMovieRecord {
+/** Backwards-compatible alias kept for callers that only deal with movies. */
+export type OrielMovieRecord = OrielMediaRecord;
+
+export interface OrielMediaRow extends OrielMediaRecord {
   id: number;
   created_at: string;
   updated_at: string;
@@ -91,7 +134,7 @@ export interface OrielMovieRow extends OrielMovieRecord {
 // Ingestion result / reporting types
 // ---------------------------------------------------------------------------
 
-export interface MovieNormalizationResult<T> {
+export interface NormalizationResult<T> {
   ok: boolean;
   value?: T;
   errors: string[];
@@ -99,12 +142,19 @@ export interface MovieNormalizationResult<T> {
   tmdbId?: number;
 }
 
-export interface MovieValidationResult {
+/** Backwards-compatible alias. */
+export type MovieNormalizationResult<T> = NormalizationResult<T>;
+
+export interface ValidationResult {
   valid: boolean;
   errors: string[];
 }
 
+/** Backwards-compatible alias. */
+export type MovieValidationResult = ValidationResult;
+
 export interface IngestionSummary {
+  mediaType: MediaType;
   source: DiscoverySource;
   requested: number;
   discovered: number;
@@ -133,19 +183,23 @@ export interface TmdbGateway {
   discoverCandidates(
     source: DiscoverySource,
     options?: {
+      mediaType?: MediaType;
       page?: number;
       genreId?: number;
       minVoteCount?: number;
       year?: number;
     }
-  ): Promise<TmdbListResult<TmdbMovieSummary>>;
-  fetchMovieDetail(tmdbId: number): Promise<TmdbMovieDetail | null>;
+  ): Promise<TmdbListResult>;
+  fetchDetail(
+    tmdbId: number,
+    mediaType: MediaType
+  ): Promise<TmdbMovieDetail | TmdbTvDetail | null>;
 }
 
-/** Minimal Supabase movies-table gateway surface. */
+/** Minimal Supabase media-table gateway surface. */
 export interface MovieDbGateway {
-  /** Returns TMDB ids that already exist in the table. */
-  existingTmdbIds(ids: number[]): Promise<Set<number>>;
-  /** Upserts on tmdb_id conflict. */
-  upsertMovies(records: OrielMovieRecord[]): Promise<UpsertOutcome>;
+  /** Returns TMDB ids that already exist in the table for the given media type. */
+  existingTmdbIds(ids: number[], mediaType: MediaType): Promise<Set<number>>;
+  /** Upserts on (media_type, tmdb_id) conflict. */
+  upsertMovies(records: OrielMediaRecord[]): Promise<UpsertOutcome>;
 }
