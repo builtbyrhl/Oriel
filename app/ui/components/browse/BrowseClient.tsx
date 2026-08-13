@@ -4,16 +4,22 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import GlassNavbar from "@/components/layout/GlassNavbar";
 import BrowseHero from "@/components/browse/BrowseHero";
+import ExploreBar from "@/components/browse/ExploreBar";
 import MovieRow from "@/components/movies/MovieRow";
 import ContinueWatchingRow from "@/components/continue-watching/ContinueWatchingRow";
 import type { Movie } from "@/components/movies/MovieCard";
+import {
+  fetchDiscovery,
+  type DiscoveryQuery,
+} from "@/lib/oriel/discovery-client";
 
 export default function BrowseClient() {
   const searchParams = useSearchParams();
   const type = searchParams.get("type") === "tv" ? "tv" : "movie";
 
+  const [query, setQuery] = useState<DiscoveryQuery>({});
   const [featured, setFeatured] = useState<Movie | null>(null);
-  const [trending, setTrending] = useState<Movie[]>([]);
+  const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,44 +27,26 @@ export default function BrowseClient() {
       try {
         setLoading(true);
 
-        const res = await fetch(
-          `/api/tmdb/trending?type=${type}`,
-          {
-            cache: "no-store",
-          }
-        );
+        const curated = await fetchDiscovery({
+          genre: query.genre,
+          mood: query.mood,
+          mediaType: type,
+          limit: 40,
+        });
 
-        if (!res.ok) {
-          throw new Error(`Trending request failed: ${res.status}`);
-        }
-
-        const data = await res.json();
-
-        const movies: Movie[] = (data.results || []).map((m: any) => ({
-          id: m.id,
-          title: m.title || m.name,
-          genre: type === "movie" ? "Movie" : "Series",
-          year: (m.release_date || m.first_air_date || "").slice(0, 4),
-          image: `https://image.tmdb.org/t/p/w780${
-            m.backdrop_path || m.poster_path
-          }`,
-          contentType:
-            type === "tv" ? "series" : "movie",
-        }));
-
-        setFeatured(movies[0] || null);
-        setTrending(movies);
+        setFeatured(curated[0] || null);
+        setMovies(curated);
       } catch (err) {
         console.error(err);
         setFeatured(null);
-        setTrending([]);
+        setMovies([]);
       } finally {
         setLoading(false);
       }
     }
 
     load();
-  }, [type]);
+  }, [type, query]);
 
   if (loading) {
     return (
@@ -68,41 +56,40 @@ export default function BrowseClient() {
     );
   }
 
-  if (!featured) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#050505] text-white">
-        Failed to load movies.
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-[#050505] text-white">
       <GlassNavbar />
 
-      <BrowseHero movie={featured} type={type === "tv" ? "series" : "movie"} />
+      {featured ? (
+        <BrowseHero
+          movie={featured}
+          type={type === "tv" ? "series" : "movie"}
+        />
+      ) : (
+        <div className="h-[60vh] bg-gradient-to-b from-neutral-900 to-[#050505]" />
+      )}
 
       <div className="mx-auto max-w-7xl px-6 py-10">
+        <ExploreBar value={query} onChange={setQuery} />
+
         <ContinueWatchingRow />
 
-        <MovieRow
-          title={type === "movie" ? "Trending Movies" : "Trending Series"}
-          movies={trending}
-        />
-
-        <MovieRow
-          title={type === "movie" ? "Popular Movies" : "Popular Series"}
-          movies={trending}
-        />
-
-        <MovieRow
-          title={
-            type === "movie"
-              ? "Award Winning Movies"
-              : "Award Winning Series"
-          }
-          movies={trending}
-        />
+        {movies.length > 0 ? (
+          <MovieRow
+            title={
+              query.genre || query.mood
+                ? `${query.genre || "Any"} · ${query.mood || "Any mood"}`
+                : type === "movie"
+                  ? "Trending Movies"
+                  : "Trending Series"
+            }
+            movies={movies}
+          />
+        ) : (
+          <p className="py-10 text-center text-white/50">
+            No titles match those filters yet.
+          </p>
+        )}
       </div>
     </main>
   );

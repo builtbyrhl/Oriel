@@ -342,9 +342,11 @@ describe("Oriel Discovery API — response shape", () => {
       "mood",
     ]);
     assert.deepEqual(Object.keys(first.candidate).sort(), [
+      "backdropPath",
       "genres",
       "mediaType",
       "popularity",
+      "posterPath",
       "releaseDate",
       "title",
       "tmdbId",
@@ -352,6 +354,8 @@ describe("Oriel Discovery API — response shape", () => {
       "voteCount",
     ]);
     assert.equal("semantics" in first.candidate, false, "AI envelope stays out of the API");
+    assert.equal(first.candidate.posterPath, null, "image paths default to null");
+    assert.equal(first.candidate.backdropPath, null);
 
     assert.equal(typeof first.score.total, "number");
     assert.ok(

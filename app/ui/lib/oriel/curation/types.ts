@@ -64,6 +64,10 @@ export interface DiscoveryCandidate {
   genres: string[];
   /** Present only when the media item has been semantically enriched. */
   semantics: CandidateSemantics | null;
+  /** TMDB-relative poster path, when the row has one (for the browse UI). */
+  posterPath?: string | null;
+  /** TMDB-relative backdrop path, when the row has one (for the browse UI). */
+  backdropPath?: string | null;
 }
 
 /** The broad, unranked pool produced for a validated discovery request. */
@@ -97,6 +101,8 @@ export interface DiscoveryCandidateRow {
   provider: string | null;
   model: string | null;
   fields: unknown;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
 }
 
 /** Minimal data-layer surface the discovery engine relies on. */

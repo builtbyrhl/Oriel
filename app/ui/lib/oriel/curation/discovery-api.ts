@@ -34,8 +34,23 @@ export interface DiscoveryApiDeps {
   db?: DiscoveryDbGateway;
 }
 
-/** A candidate as exposed by the API — media identity, no AI envelope. */
-export type DiscoveryApiCandidate = Omit<DiscoveryCandidate, "semantics">;
+/**
+ * A candidate as exposed by the API — media identity, no AI envelope. Image
+ * paths are always present (null when the row has none) so the response shape
+ * is stable for clients.
+ */
+export interface DiscoveryApiCandidate {
+  mediaType: "movie" | "tv";
+  tmdbId: number;
+  title: string;
+  releaseDate: string | null;
+  voteAverage: number | null;
+  voteCount: number | null;
+  popularity: number | null;
+  genres: string[];
+  posterPath: string | null;
+  backdropPath: string | null;
+}
 
 export interface DiscoveryApiScore {
   total: number;
@@ -79,6 +94,8 @@ function toApiCandidate(candidate: DiscoveryCandidate): DiscoveryApiCandidate {
     voteCount: candidate.voteCount,
     popularity: candidate.popularity,
     genres: candidate.genres,
+    posterPath: candidate.posterPath ?? null,
+    backdropPath: candidate.backdropPath ?? null,
   };
 }
 

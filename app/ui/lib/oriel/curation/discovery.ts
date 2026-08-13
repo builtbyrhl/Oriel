@@ -237,6 +237,8 @@ function toCandidate(row: DiscoveryCandidateRow): DiscoveryCandidate {
     popularity: row.popularity,
     genres: row.genres ?? [],
     semantics,
+    posterPath: row.poster_path ?? null,
+    backdropPath: row.backdrop_path ?? null,
   };
 }
 
