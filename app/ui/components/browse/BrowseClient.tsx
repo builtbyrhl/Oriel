@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import GlassNavbar from "@/components/layout/GlassNavbar";
 import BrowseHero from "@/components/browse/BrowseHero";
-import ExploreBar from "@/components/browse/ExploreBar";
-import MovieRow from "@/components/movies/MovieRow";
-import ContinueWatchingRow from "@/components/continue-watching/ContinueWatchingRow";
+import SpinToExplore from "@/components/browse/SpinToExplore";
+import SelectedMoviePanel from "@/components/browse/SelectedMoviePanel";
+import CuratedStrip from "@/components/browse/CuratedStrip";
+import ReservedSection from "@/components/browse/ReservedSection";
 import type { Movie } from "@/components/movies/MovieCard";
 import {
   fetchDiscovery,
@@ -70,26 +71,39 @@ export default function BrowseClient() {
       )}
 
       <div className="mx-auto max-w-7xl px-6 py-10">
-        <ExploreBar value={query} onChange={setQuery} />
+        <SpinToExplore value={query} onChange={setQuery} />
 
-        <ContinueWatchingRow />
-
-        {movies.length > 0 ? (
-          <MovieRow
-            title={
-              query.genre || query.mood
-                ? `${query.genre || "Any"} · ${query.mood || "Any mood"}`
-                : type === "movie"
-                  ? "Trending Movies"
-                  : "Trending Series"
-            }
-            movies={movies}
-          />
-        ) : (
-          <p className="py-10 text-center text-white/50">
-            No titles match those filters yet.
-          </p>
+        {featured && (
+          <div className="mt-16">
+            <SelectedMoviePanel movie={featured} />
+          </div>
         )}
+
+        {movies.length > 1 && (
+          <div className="mt-16">
+            <CuratedStrip
+              title={
+                query.genre || query.mood
+                  ? "The Selection"
+                  : "Trending Now"
+              }
+              movies={movies}
+            />
+          </div>
+        )}
+
+        <div className="mt-16 space-y-10">
+          <ReservedSection
+            eyebrow="Curated"
+            title="Visual Collections"
+            description="Hand-picked visual sections will live here — editorial strips, mood boards, and themed galleries."
+          />
+          <ReservedSection
+            eyebrow="Recommendations"
+            title="Trading-style Signal Feed"
+            description="A live, trading-style recommendation stream with directional signals will land in this reserved space."
+          />
+        </div>
       </div>
     </main>
   );
