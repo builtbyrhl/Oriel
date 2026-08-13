@@ -8,6 +8,11 @@
 import type { MediaType } from "../types";
 import type { SemanticFields } from "../../ai/types";
 
+/** Recursively partial variant of a type, for ergonomic config overrides. */
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
+};
+
 /** Which media kinds a discovery request covers. */
 export type DiscoveryMediaScope = MediaType | "both";
 

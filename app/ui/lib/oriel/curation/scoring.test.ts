@@ -21,8 +21,8 @@ import {
   voteConfidence,
   voteQuality,
 } from "./scoring";
-import type { DeepPartial, ScoringConfig, ScoringContext } from "./scoring";
-import type { CandidatePool, CandidateSemantics, DiscoveryCandidate } from "./types";
+import type { ScoringConfig, ScoringContext } from "./scoring";
+import type { CandidatePool, CandidateSemantics, DeepPartial, DiscoveryCandidate } from "./types";
 
 // ---------------------------------------------------------------------------
 // Fixtures

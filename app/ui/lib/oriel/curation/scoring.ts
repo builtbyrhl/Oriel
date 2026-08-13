@@ -26,7 +26,11 @@
 // Diversity, personalization and Spin are intentionally out of scope.
 
 import { normalizeGenre, normalizeMood } from "./discovery";
-import type { CandidatePool, DiscoveryCandidate } from "./types";
+import type {
+  CandidatePool,
+  DeepPartial,
+  DiscoveryCandidate,
+} from "./types";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -109,11 +113,6 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
     floorScoreAgeDays: 7300, // ~20 years
     floorScore: 0.5,
   },
-};
-
-/** Recursively partial variant of a config, for ergonomic overrides. */
-export type DeepPartial<T> = {
-  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
 
 /** Merges a partial configuration over the defaults. */
