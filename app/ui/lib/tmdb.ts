@@ -88,3 +88,35 @@ export async function multiSearch(query: string) {
 export async function getSimilarMovies(id: string) {
   return tmdbFetch(`/movie/${id}/similar`);
 }
+
+// ---------------------------------------------------------------------------
+// Oriel ingestion helpers (reuse the same TMDB client)
+// ---------------------------------------------------------------------------
+
+export interface TmdbDiscoverParams {
+  page?: number;
+  genre_id?: number;
+  min_vote_count?: number;
+  primary_release_year?: number;
+  sort_by?: string;
+}
+
+/** Fetches full details for a single TMDB movie. */
+export function getMovieDetails(id: number | string) {
+  return tmdbFetch(`/movie/${id}`);
+}
+
+/** Fetches a page of discoverable movies via the TMDB /discover endpoint. */
+export function discoverMovies(params: TmdbDiscoverParams = {}) {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null) {
+      query.set(key, String(value));
+    }
+  }
+
+  const qs = query.toString();
+
+  return tmdbFetch(`/discover/movie${qs ? `?${qs}` : ""}`);
+}
