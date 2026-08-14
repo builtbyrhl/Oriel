@@ -88,7 +88,7 @@ export default function BrowseClient() {
       )}
 
       <main className="mx-auto max-w-7xl px-5 md:px-6">
-        <SpinToExplore value={query} onChange={setQuery} movies={movies} />
+        <SpinToExplore value={query} onChange={setQuery} mediaType={type} />
 
         <RhythmSection movies={movies} />
 
