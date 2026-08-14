@@ -194,15 +194,15 @@ export default function SpinOrbit({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidates]);
 
-  function beginInteraction() {
-    lastInteractRef.current = performance.now();
+  function beginInteraction(now: number) {
+    lastInteractRef.current = now;
     autoPausedRef.current = true;
     easeActiveRef.current = false;
   }
 
-  function selectCard(index: number) {
+  function selectCard(index: number, now: number) {
     if (count === 0 || index < 0 || index >= count) return;
-    beginInteraction();
+    beginInteraction(now);
 
     if (reducedMotionRef.current) {
       phaseRef.current = alignPhase(phaseRef.current, count, index);
@@ -212,7 +212,7 @@ export default function SpinOrbit({
 
     easeFromRef.current = phaseRef.current;
     easeToRef.current = alignPhase(phaseRef.current, count, index);
-    easeStartRef.current = performance.now();
+    easeStartRef.current = now;
     easeDurationRef.current = SELECT_EASE_MS;
     easeActiveRef.current = true;
   }
@@ -221,7 +221,7 @@ export default function SpinOrbit({
     draggingRef.current = true;
     movedRef.current = false;
     lastXRef.current = e.clientX;
-    beginInteraction();
+    beginInteraction(e.timeStamp);
     e.currentTarget.setPointerCapture(e.pointerId);
   }
 
@@ -250,9 +250,9 @@ export default function SpinOrbit({
     easeActiveRef.current = true;
   }
 
-  function onCardClick(index: number) {
+  function onCardClick(index: number, now: number) {
     if (movedRef.current) return; // was a drag, not a tap
-    selectCard(index);
+    selectCard(index, now);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -262,7 +262,8 @@ export default function SpinOrbit({
       e.preventDefault();
       const active = pickIndex(phaseRef.current, count);
       selectCard(
-        e.key === "ArrowRight" ? nextIndex(active, count) : prevIndex(active, count)
+        e.key === "ArrowRight" ? nextIndex(active, count) : prevIndex(active, count),
+        e.timeStamp
       );
     }
   }
@@ -281,12 +282,8 @@ export default function SpinOrbit({
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        className="relative h-[320px] touch-pan-y select-none overflow-hidden rounded-[30px] border border-white/10 bg-[radial-gradient(circle_at_50%_56%,#17130f_0%,#0b0b0b_45%,#070707_78%)] outline-none focus-visible:ring-1 focus-visible:ring-white/30 sm:h-[360px] md:h-[440px]"
+        className="relative h-[320px] touch-pan-y select-none overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-white/30 sm:h-[360px] md:h-[440px]"
       >
-        <p className="pointer-events-none absolute left-5 top-4 text-[9px] font-medium uppercase tracking-[0.22em] text-white/30 md:left-7 md:top-5">
-          Tap or drag · centre is the pick
-        </p>
-
         <div className="absolute inset-0">
           {count > 0 &&
             ring.map((candidate, i) => {
@@ -301,11 +298,11 @@ export default function SpinOrbit({
                   }}
                   aria-label={`Select ${candidate.title}`}
                   aria-current={isActive ? "true" : undefined}
-                  onClick={() => onCardClick(i)}
+                  onClick={() => onCardClick(i, performance.now())}
                   className={`absolute w-24 transition-shadow duration-700 sm:w-28 md:w-36 lg:w-40 ${
                     isActive
-                      ? "rounded-xl border border-white/70 shadow-[0_0_0_1px_rgba(255,255,255,0.18),0_30px_60px_rgba(0,0,0,0.7)]"
-                      : "rounded-xl border border-white/10 shadow-[0_18px_45px_rgba(0,0,0,0.55)]"
+                      ? "rounded-xl ring-1 ring-white/70 shadow-[0_24px_60px_rgba(0,0,0,0.55)]"
+                      : "rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.4)]"
                   }`}
                 >
                   <img
@@ -314,8 +311,8 @@ export default function SpinOrbit({
                     draggable={false}
                     className="aspect-[2/3] w-full rounded-xl object-cover"
                   />
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-xl bg-gradient-to-t from-black/90 via-black/40 to-transparent px-2.5 pb-2.5 pt-10">
-                    <p className="line-clamp-2 text-[9px] font-semibold uppercase leading-tight tracking-[0.16em] text-white/85">
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-xl bg-gradient-to-t from-black/85 via-black/30 to-transparent px-3 pb-3 pt-14">
+                    <p className="line-clamp-2 text-[10px] font-semibold uppercase leading-tight tracking-[0.14em] text-white/90">
                       {candidate.title}
                     </p>
                   </div>

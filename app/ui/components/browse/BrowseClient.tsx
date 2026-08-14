@@ -18,7 +18,9 @@ export default function BrowseClient() {
   const searchParams = useSearchParams();
   const type = searchParams.get("type") === "tv" ? "tv" : "movie";
 
-  const [query, setQuery] = useState<DiscoveryQuery>({});
+  // The page lands on a valid curated intent so the Spin request is always
+  // well-formed from the first paint (the engine requires genre and/or mood).
+  const [query, setQuery] = useState<DiscoveryQuery>({ genre: "Drama" });
   const [featured, setFeatured] = useState<Movie | null>(null);
   const [movies, setMovies] = useState<Movie[]>([]);
   const [weekly, setWeekly] = useState<Movie[]>([]);

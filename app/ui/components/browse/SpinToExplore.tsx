@@ -63,12 +63,17 @@ function subscribePrefersReducedMotion(onStoreChange: () => void): () => void {
 /**
  * The Spin to Explore section — the real mechanism wired to /api/oriel/spin.
  *
- * Genre and Mood sit beside the heading as independent dropdowns (both values
- * are forwarded as-is; the engine owns semantic matching — the UI never maps
- * mood to genre). The SpinOrbit is the rotating selection surface; the centre
- * pick drives the title / metadata / synopsis below it. All recommendation
- * logic stays in the engine: this component only fetches, arranges and
- * animates what buildSpinSet already decided.
+ * Genre and Mood sit beside the heading as compact editorial selects (both
+ * values are forwarded as-is; the engine owns semantic matching — the UI
+ * never maps mood to genre). The SpinOrbit is a borderless cinematic poster
+ * orbit; the centre pick drives the title / metadata / synopsis below it. All
+ * recommendation logic stays in the engine: this component only fetches,
+ * arranges and animates what buildSpinSet already decided.
+ *
+ * The page always lands on a valid curated intent (BrowseClient defaults the
+ * shared query to a genre), so the ring never starts broken. Only if the user
+ * deliberately clears every dimension does the section show a quiet editorial
+ * invitation instead of fetching an invalid request.
  */
 export default function SpinToExplore({ value, onChange, mediaType }: Props) {
   const [candidates, setCandidates] = useState<SpinUiCandidate[] | null>(null);
@@ -81,7 +86,14 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
     () => false
   );
 
+  const dimensions = [value.genre, value.mood].filter(
+    (d): d is string => Boolean(d?.trim())
+  );
+  const intentEmpty = dimensions.length === 0;
+
   useEffect(() => {
+    if (intentEmpty) return;
+
     let cancelled = false;
 
     fetchSpin({
@@ -104,23 +116,26 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [value.genre, value.mood, mediaType, retryKey]);
+  }, [intentEmpty, value.genre, value.mood, mediaType, retryKey]);
 
-  const dimensions = [value.genre, value.mood].filter(
-    (d): d is string => Boolean(d?.trim())
-  );
-
-  const status = fetchFailed
-    ? "error"
-    : candidates === null
-      ? "loading"
-      : candidates.length === 0
-        ? "empty"
-        : "ready";
+  const status = intentEmpty
+    ? "invite"
+    : fetchFailed
+      ? "error"
+      : candidates === null
+        ? "loading"
+        : candidates.length === 0
+          ? "empty"
+          : "ready";
 
   const active = candidates?.[activeIndex] ?? null;
   const metadata = active
-    ? formatSpinMetadata(active.year, active.runtime, active.rating)
+    ? [
+        active.mediaType === "tv" ? "Series" : "Movie",
+        formatSpinMetadata(active.year, active.runtime, active.rating),
+      ]
+        .filter((part): part is string => Boolean(part))
+        .join(" · ")
     : null;
 
   const infoTransition = reducedMotion
@@ -132,9 +147,9 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
       <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
         <div className="lg:pr-8">
           <SectionHead
-            eyebrow="01 · Spin"
+            eyebrow="01 · SPIN"
             title="Spin to Explore"
-            sub="A slow-turning ring of strong, meaningfully different picks. Tap a poster to bring it into focus — the centre is your current pick."
+            sub="A slower way to discover something unexpected."
           />
         </div>
 
@@ -157,19 +172,16 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
       </div>
 
       {dimensions.length > 0 && (
-        <div className="mt-6 flex items-center justify-center gap-5">
-          {dimensions.map((dimension) => (
-            <span
-              key={dimension}
-              className="text-[11px] font-medium uppercase tracking-[0.3em] text-[#b5aa9a]"
-            >
-              [{dimension}]
-            </span>
-          ))}
+        <div className="mt-8 flex items-center justify-center gap-4">
+          <span className="h-px w-10 bg-white/10" />
+          <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-[#b5aa9a]">
+            {dimensions.join(" · ")}
+          </p>
+          <span className="h-px w-10 bg-white/10" />
         </div>
       )}
 
-      <div className="mt-10">
+      <div className="mt-12">
         {status === "ready" ? (
           <>
             <SpinOrbit
@@ -189,7 +201,7 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
                     transition={infoTransition}
                   >
                     <p className="flex items-center justify-center gap-3 text-[10px] font-medium uppercase tracking-[0.3em] text-[#b5aa9a]">
-                      Now in focus · Oriel Pick
+                      Now in focus
                       <span className="h-px w-6 bg-[#817767]" />
                     </p>
 
@@ -217,8 +229,10 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
           <SpinSkeleton />
         ) : status === "empty" ? (
           <EmptyState />
-        ) : (
+        ) : status === "error" ? (
           <ErrorState onRetry={() => setRetryKey((k) => k + 1)} />
+        ) : (
+          <InvitationState />
         )}
       </div>
     </section>
@@ -228,7 +242,7 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
 function SpinSkeleton() {
   return (
     <div>
-      <div className="relative h-[320px] overflow-hidden rounded-[30px] border border-white/10 bg-[#0a0a0a] sm:h-[360px] md:h-[440px]">
+      <div className="relative h-[320px] overflow-hidden sm:h-[360px] md:h-[440px]">
         {SKELETON_SLOTS.map((slot, i) => (
           <div
             key={i}
@@ -249,42 +263,50 @@ function SpinSkeleton() {
         <div className="mx-auto h-2.5 w-28 oriel-shimmer rounded-full" />
         <div className="mx-auto h-8 w-2/3 oriel-shimmer rounded-full" />
         <div className="mx-auto h-3 w-40 oriel-shimmer rounded-full" />
-        <div className="mx-auto h-3 w-1/2 oriel-shimmer rounded-full" />
       </div>
+    </div>
+  );
+}
+
+function InvitationState() {
+  return (
+    <div className="mx-auto max-w-md py-24 text-center md:py-28">
+      <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-white/25">
+        Spin to Explore
+      </p>
+      <p className="mt-4 text-sm font-light leading-relaxed text-white/35">
+        Choose a genre or mood to set the machine in motion.
+      </p>
     </div>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="grid h-[320px] place-items-center rounded-[30px] border border-white/10 bg-[#0a0a0a] sm:h-[360px] md:h-[440px]">
-      <div className="max-w-xs px-6 text-center">
-        <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-white/25">
-          No discoveries here yet
-        </p>
-        <p className="mt-4 text-xs font-light leading-relaxed text-white/35">
-          The quality floor keeps weak matches out. Try another genre or mood.
-        </p>
-      </div>
+    <div className="mx-auto max-w-md py-24 text-center md:py-28">
+      <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-white/25">
+        No discoveries here yet
+      </p>
+      <p className="mt-4 text-sm font-light leading-relaxed text-white/35">
+        The quality floor keeps weak matches out. Try another genre or mood.
+      </p>
     </div>
   );
 }
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="grid h-[320px] place-items-center rounded-[30px] border border-white/10 bg-[#0a0a0a] sm:h-[360px] md:h-[440px]">
-      <div className="max-w-xs px-6 text-center">
-        <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-white/30">
-          Couldn&apos;t load the Spin set
-        </p>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-5 rounded-full border border-white/15 bg-white/5 px-6 py-2 text-xs tracking-wide text-white/70 transition hover:border-white/30 hover:text-white"
-        >
-          Try again
-        </button>
-      </div>
+    <div className="mx-auto max-w-md py-24 text-center md:py-28">
+      <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-white/25">
+        Unable to load this selection
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-5 text-xs tracking-wide text-white/50 underline decoration-white/25 underline-offset-4 transition hover:text-white"
+      >
+        Try again
+      </button>
     </div>
   );
 }
@@ -311,7 +333,7 @@ function SelectField({
         <select
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value || undefined)}
-          className="w-full cursor-pointer appearance-none rounded-full border border-white/15 bg-white/[0.05] px-5 py-2.5 pr-10 text-sm text-[#f3f0e9] outline-none transition focus:border-white/40 sm:w-auto"
+          className="w-full cursor-pointer appearance-none rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 pr-9 text-sm text-[#f3f0e9] outline-none transition focus:border-white/40 sm:w-auto"
         >
           <option value="" className="bg-neutral-900 text-white/60">
             {placeholder}
@@ -322,7 +344,7 @@ function SelectField({
             </option>
           ))}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+        <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/40" />
       </span>
     </label>
   );
