@@ -1,76 +1,126 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { Play } from "lucide-react";
 import type { Movie } from "@/components/movies/MovieCard";
+import WatchlistButton from "@/components/watchlist/WatchlistButton";
+
+const BACKDROP_ORIGINAL = "https://image.tmdb.org/t/p/original";
 
 type Props = {
   movie: Movie;
   type: "movie" | "series";
 };
 
+/**
+ * The Browse-page hero — a full-bleed cinematic backdrop with editorial
+ * content anchored toward the lower-left. The artwork does the visual work:
+ * the only treatments are left-to-right darkening for text readability, a
+ * bottom fade into the page background, and a subtle top protection for the
+ * floating nav. Uses the shared trending data flow (no extra fetching);
+ * the original-resolution backdrop is served from the raw path the mapping
+ * keeps, falling back to the composed image.
+ */
 export default function BrowseHero({ movie, type }: Props) {
-  const href =
-    type === "series" ? `/tv/${movie.id}` : `/movie/${movie.id}`;
+  const href = type === "series" ? `/tv/${movie.id}` : `/movie/${movie.id}`;
+  const backdrop = movie.backdrop
+    ? `${BACKDROP_ORIGINAL}${movie.backdrop}`
+    : movie.image;
+
+  const year = movie.year?.trim() || null;
+  const rating = movie.rating != null ? movie.rating.toFixed(1) : null;
+  const metadata = [movie.genre, year, rating].filter(
+    (item): item is string => Boolean(item)
+  );
 
   return (
-    <section className="relative min-h-[60vh] overflow-hidden md:min-h-[78vh]">
+    <section
+      aria-label={`Featured on Oriel: ${movie.title}`}
+      className="relative isolate min-h-[600px] overflow-hidden bg-[#050505] sm:min-h-[680px] lg:min-h-[760px]"
+    >
       {/* Backdrop */}
-      <motion.img
-        src={movie.image}
-        alt={movie.title}
-        initial={{ scale: 1.06 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 2.4, ease: "easeOut" }}
-        className="absolute inset-0 h-full w-full object-cover"
+      <div className="absolute inset-0">
+        <Image
+          src={backdrop}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+      </div>
+
+      {/* Left-to-right darkening for text readability */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/35 to-transparent"
       />
 
-      {/* Cinematic grading */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/30 to-black/20" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent" />
+      {/* Bottom fade into the page background */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/15 to-transparent"
+      />
 
-      {/* Subtle vignette for depth */}
-      <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_120px_rgba(0,0,0,0.45)]" />
+      {/* Subtle top protection for the floating nav */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/35 to-transparent"
+      />
 
-      {/* Content */}
-      <div className="relative flex min-h-[60vh] items-end md:min-h-[78vh]">
-        <div className="mx-auto w-full max-w-7xl px-6 pb-14 md:pb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
-          >
-            <p className="mb-5 flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.35em] text-white/60">
-              <span className="h-px w-8 bg-white/30" />
-              {type === "movie" ? "Featured Movie" : "Featured Series"}
+      {/* Content — anchored lower-left, aligned with the page gutter */}
+      <div className="relative z-10 flex min-h-[600px] items-end sm:min-h-[680px] lg:min-h-[760px]">
+        <div className="mx-auto w-full max-w-7xl px-5 pb-14 md:px-6 md:pb-20">
+          <p className="mb-5 text-[10px] font-medium uppercase tracking-[0.28em] text-white/55">
+            Featured on Oriel
+          </p>
+
+          <h1 className="max-w-3xl font-serif text-5xl font-normal leading-[1.02] tracking-tight text-[#f3f0e9] md:text-7xl lg:text-8xl">
+            {movie.title}
+          </h1>
+
+          {metadata.length > 0 && (
+            <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-white/65">
+              {metadata.map((item, index) => (
+                <span key={`${item}-${index}`} className="flex items-center">
+                  {index > 0 && (
+                    <span aria-hidden="true" className="mr-3 text-white/25">
+                      •
+                    </span>
+                  )}
+                  {item}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {movie.overview && (
+            <p className="mt-5 max-w-xl text-sm leading-6 text-white/65 sm:text-base sm:leading-7">
+              {movie.overview}
             </p>
+          )}
 
-            <h1 className="max-w-3xl font-serif text-5xl font-normal leading-[1.02] tracking-tight text-[#f3f0e9] md:text-7xl lg:text-8xl">
-              {movie.title}
-            </h1>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link
+              href={href}
+              className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-medium text-black transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Play className="h-4 w-4 fill-current" />
+              Explore
+            </Link>
 
-            <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm font-light text-white/60">
-              <span className="text-white/90">{movie.genre}</span>
-
-              {movie.year && (
-                <>
-                  <span className="h-1 w-1 rounded-full bg-white/30" />
-                  <span>{movie.year}</span>
-                </>
-              )}
-            </div>
-
-            <div className="mt-8 md:mt-10">
-              <Link
-                href={href}
-                className="group inline-flex items-center gap-3 rounded-full bg-white px-7 py-3 text-sm font-medium text-black transition-all duration-300 hover:bg-white/90 hover:shadow-[0_0_30px_rgba(255,255,255,0.25)]"
-              >
-                Explore
-                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Link>
-            </div>
-          </motion.div>
+            <WatchlistButton
+              movie={{
+                id: movie.id,
+                title: movie.title,
+                poster: movie.image,
+                backdrop: movie.image,
+                year: movie.year,
+                rating: movie.rating ?? 0,
+              }}
+            />
+          </div>
         </div>
       </div>
     </section>

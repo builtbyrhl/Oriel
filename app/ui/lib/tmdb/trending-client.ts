@@ -57,6 +57,7 @@ export function trendingToMovie(
     genre: mediaType === "tv" ? "Series" : "Movie",
     year: (item.release_date || item.first_air_date || "").slice(0, 4),
     image: path ? `${base}${path}` : PLACEHOLDER_IMAGE,
+    backdrop: item.backdrop_path ?? null,
     contentType: mediaType === "tv" ? "series" : "movie",
     rating: item.vote_average ?? null,
     overview: item.overview,

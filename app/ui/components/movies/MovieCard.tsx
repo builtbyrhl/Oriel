@@ -10,6 +10,8 @@ export type Movie = {
   genre: string;
   year: string;
   image: string;
+  /** Raw TMDB backdrop path, so full-resolution artwork can be requested. */
+  backdrop?: string | null;
   contentType?: "movie" | "series";
   rating?: number | null;
   genres?: string[];
