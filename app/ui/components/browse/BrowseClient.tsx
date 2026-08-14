@@ -31,7 +31,7 @@ export default function BrowseClient() {
       try {
         setLoading(true);
 
-        const [curated, trending] = await Promise.all([
+        const [curated, trending] = await Promise.allSettled([
           fetchDiscovery({
             genre: query.genre,
             mood: query.mood,
@@ -43,9 +43,18 @@ export default function BrowseClient() {
 
         if (cancelled) return;
 
-        setFeatured(trending[0] || null);
-        setMovies(curated);
-        setWeekly(trending);
+        if (curated.status === "rejected") {
+          console.error("Discovery request failed", curated.reason);
+        }
+        if (trending.status === "rejected") {
+          console.error("Trending request failed", trending.reason);
+        }
+
+        setFeatured(
+          trending.status === "fulfilled" ? trending.value[0] || null : null
+        );
+        setMovies(curated.status === "fulfilled" ? curated.value : []);
+        setWeekly(trending.status === "fulfilled" ? trending.value : []);
       } catch (err) {
         console.error(err);
 
