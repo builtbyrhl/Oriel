@@ -21,6 +21,14 @@ export const DEFAULT_SPIN_GEOMETRY: SpinGeometry = { rx: 40, ry: 20, cy: 54 };
 /** How many posters are shown in the ring (the engine set is larger). */
 export const RING_COUNT = 7;
 
+/**
+ * Pointer movement (px) past which a press is classified as a drag rather than
+ * a tap. Deliberately small: below it the orbit stays put and a release
+ * selects the card under the finger; at or beyond it the orbit follows the
+ * finger. Single source of truth for tap-vs-drag classification.
+ */
+export const DRAG_TAP_THRESHOLD_PX = 6;
+
 /** Slow, cinematic auto-rotation speed in degrees/second. */
 export const SPIN_DEG_PER_S = 5;
 
@@ -173,4 +181,150 @@ export function formatSpinMetadata(
 /** Whether the mechanism should auto-rotate under the given motion setting. */
 export function shouldAutoRotate(prefersReducedMotion: boolean): boolean {
   return !prefersReducedMotion;
+}
+
+// ---------------------------------------------------------------------------
+// Responsive viewport sizing
+//
+// One deliberate, testable source of truth for how the ring is sized at any
+// canvas width. The poster width, canvas height and ellipse geometry all come
+// from the same function so the skeleton placeholder, the orbit and the fit
+// guarantees can never drift apart.
+// ---------------------------------------------------------------------------
+
+export interface SpinResponsive {
+  geometry: SpinGeometry;
+  /** Poster width in px (posters are 2:3, so height = 1.5 × width). */
+  posterWidth: number;
+  /** Canvas height in px that comfortably contains the whole ellipse. */
+  canvasHeight: number;
+}
+
+/**
+ * Poster width for a given canvas width. Mirrors the intended visual density:
+ * posters step up as the canvas grows instead of one size for every phone.
+ */
+export function posterWidthForViewport(width: number): number {
+  if (width < 640) return 96;
+  if (width < 768) return 112;
+  if (width < 1024) return 144;
+  return 160;
+}
+
+/**
+ * Canvas height for a given canvas width. Chosen so the apex card clears the
+ * top and the lowest card clears the bottom even at full rotation; the bounds
+ * test in spin-geometry.test.ts pins this against the real cardLayout output.
+ */
+export function spinCanvasHeightForViewport(width: number): number {
+  if (width < 640) return 320;
+  if (width < 768) return 360;
+  if (width < 1024) return 440;
+  return 480;
+}
+
+/**
+ * Ellipse geometry for a given canvas width. On narrow phones the ring pulls
+ * in (tighter rx/ry) so neighbouring posters stay fully inside the viewport;
+ * on desktop it opens out to the same shallow cinematic ellipse as before.
+ * rx is also bounded by the horizontal fit requirement so no card can ever
+ * leave the canvas at any phase.
+ */
+export function spinGeometryForViewport(width: number): SpinGeometry {
+  if (width <= 0) return { ...DEFAULT_SPIN_GEOMETRY };
+  const posterWidth = posterWidthForViewport(width);
+  // Half of the widest off-centre card, as a % of the canvas. This is the
+  // margin the ring must keep on each side so scaled cards never clip.
+  const halfCardPct = ((posterWidth / 2) * 0.95 * 100) / width;
+  const rx = Math.min(width < 420 ? 34 : 40, 50 - halfCardPct);
+  return { rx, ry: width < 420 ? 15 : 20, cy: 54 };
+}
+
+/** Full responsive sizing for a canvas width. */
+export function spinLayoutForViewport(width: number): SpinResponsive {
+  return {
+    geometry: spinGeometryForViewport(width),
+    posterWidth: posterWidthForViewport(width),
+    canvasHeight: spinCanvasHeightForViewport(width),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Drag interaction model
+//
+// Pure pointer-gesture tracking so tap-vs-drag classification, rotation
+// sensitivity and snap targets are unit-testable without a DOM. The component
+// feeds raw pointer positions in and applies the returned phase deltas.
+// ---------------------------------------------------------------------------
+
+export interface SpinPointerGesture {
+  startX: number;
+  startY: number;
+  lastX: number;
+  lastY: number;
+  /** True once the drag threshold has been crossed (the gesture is a drag). */
+  moved: boolean;
+}
+
+/** Begins a fresh gesture; a new gesture per pointerdown keeps state clean. */
+export function createSpinPointerGesture(x: number, y: number): SpinPointerGesture {
+  return { startX: x, startY: y, lastX: x, lastY: y, moved: false };
+}
+
+/**
+ * Rotation degrees to apply for a pointer move. Returns 0 until the drag
+ * threshold is crossed so a tap never nudges the orbit; the first move past
+ * the threshold applies the full displacement from the press so the ring
+ * connects to the finger without a jump. Rightward movement rotates the ring
+ * so the card under the finger follows it (positive phase delta).
+ */
+export function advanceSpinGesture(
+  gesture: SpinPointerGesture,
+  x: number,
+  y: number,
+  degPerPx: number
+): number {
+  const dx = x - gesture.lastX;
+  gesture.lastX = x;
+  gesture.lastY = y;
+
+  if (!gesture.moved) {
+    const fromStart = Math.hypot(x - gesture.startX, y - gesture.startY);
+    if (fromStart < DRAG_TAP_THRESHOLD_PX) return 0;
+    gesture.moved = true;
+    return (x - gesture.startX) * degPerPx;
+  }
+
+  return dx * degPerPx;
+}
+
+/**
+ * Whether a gesture ended without crossing the drag threshold — i.e. it was a
+ * tap. The component uses this to decide between selecting a card and letting
+ * the release snap.
+ */
+export function gestureEndedAsTap(gesture: SpinPointerGesture | null): boolean {
+  return gesture ? !gesture.moved : true;
+}
+
+/**
+ * Degrees of rotation per pixel of drag, so the ring tracks the finger 1:1:
+ * the point of the ring under the finger stays under it (radius-dependent).
+ * Wider canvases with a bigger rx give finer control; narrow phones stay
+ * reachable within a single swipe.
+ */
+export function dragDegPerPx(width: number, rxPercent: number): number {
+  const radiusPx = (rxPercent / 100) * width;
+  if (radiusPx <= 0) return 0.14;
+  return 360 / (2 * Math.PI * radiusPx);
+}
+
+/**
+ * The phase that centres the nearest candidate to the apex, reached by the
+ * shortest arc. Used by the release-snap: after a drag ends, the orbit settles
+ * on the candidate closest to centre without ever stopping between slots.
+ */
+export function snapTargetPhase(phase: number, count: number): number {
+  if (count <= 0) return phase;
+  return alignPhase(phase, count, pickIndex(phase, count));
 }

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import SectionHead from "@/components/browse/SectionHead";
 import SpinOrbit from "@/components/browse/SpinOrbit";
+import { useSpinViewportLayout } from "@/components/browse/useSpinViewportLayout";
 import { fetchSpin, type SpinUiCandidate } from "@/lib/oriel/spin-client";
 import type { DiscoveryQuery } from "@/lib/oriel/discovery-client";
 import { cardLayout, formatSpinMetadata } from "@/lib/oriel/spin-geometry";
@@ -48,11 +49,10 @@ type Props = {
   mediaType: "movie" | "tv";
 };
 
-// Skeleton poster slots, matching the ring's geometry so the layout never
-// shifts when real data arrives.
-const SKELETON_SLOTS = [0, 1, 6, 2, 5].map((index) =>
-  cardLayout(index, 7, 0)
-);
+// The skeleton mirrors the ring's exact slots so the layout never shifts when
+// real data arrives. Which slots to show (no skeleton for cards 3 and 4 —
+// they sit lowest and darkest) stays fixed.
+const SKELETON_INDEXES = [0, 1, 6, 2, 5];
 
 function subscribePrefersReducedMotion(onStoreChange: () => void): () => void {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -190,7 +190,11 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
               onPickChange={setActiveIndex}
             />
 
-            <div className="mx-auto mt-12 max-w-2xl text-center" aria-live="polite">
+            <p className="mt-6 text-center text-[10px] font-medium uppercase tracking-[0.3em] text-white/25">
+              Drag the ring to spin it
+            </p>
+
+            <div className="mx-auto mt-10 max-w-2xl text-center" aria-live="polite">
               <AnimatePresence mode="wait">
                 {active && (
                   <motion.div
@@ -240,16 +244,26 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
 }
 
 function SpinSkeleton() {
+  const { ref, layout } = useSpinViewportLayout();
+  const slots = SKELETON_INDEXES.map((index) =>
+    cardLayout(index, 7, 0, layout.geometry)
+  );
+
   return (
     <div>
-      <div className="relative h-[320px] overflow-hidden sm:h-[360px] md:h-[440px]">
-        {SKELETON_SLOTS.map((slot, i) => (
+      <div
+        ref={ref}
+        className="relative w-full overflow-hidden"
+        style={{ height: layout.canvasHeight }}
+      >
+        {slots.map((slot, i) => (
           <div
             key={i}
-            className="absolute w-24 sm:w-28 md:w-36"
+            className="absolute"
             style={{
               left: `${slot.x}%`,
               top: `${slot.y}%`,
+              width: layout.posterWidth,
               opacity: slot.opacity,
               transform: `translate(-50%,-50%) scale(${slot.scale})`,
             }}

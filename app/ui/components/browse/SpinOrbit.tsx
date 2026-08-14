@@ -8,18 +8,29 @@ import {
   SNAP_EASE_MS,
   RESUME_INACTIVITY_MS,
   DEFAULT_SPIN_GEOMETRY,
+  advanceSpinGesture,
   alignPhase,
   cardLayout,
+  createSpinPointerGesture,
+  dragDegPerPx,
+  gestureEndedAsTap,
   nextIndex,
   pickIndex,
   prevIndex,
   easeOutCubic,
   type SpinGeometry,
+  type SpinPointerGesture,
 } from "@/lib/oriel/spin-geometry";
 import type { SpinUiCandidate } from "@/lib/oriel/spin-client";
+import { useSpinViewportLayout } from "./useSpinViewportLayout";
 
-const DRAG_FACTOR = 0.14;
-const DRAG_TAP_THRESHOLD = 4;
+/**
+ * How long a pointer-originated tap/drag flag survives. The synthetic click
+ * that follows a pointer interaction must be swallowed (a tap already selects
+ * on pointer-up, a drag must never select), but a later keyboard-activated
+ * click must not be. The flag expires so it can never go stale.
+ */
+const POINTER_FLAG_EXPIRY_MS = 500;
 
 type Props = {
   candidates: SpinUiCandidate[];
@@ -28,11 +39,6 @@ type Props = {
   /** Fires only when the active (centre) candidate changes. */
   onPickChange: (index: number) => void;
 };
-
-function geometryForWidth(width: number): SpinGeometry {
-  if (width < 480) return { rx: 34, ry: 15, cy: 56 };
-  return { rx: 40, ry: 20, cy: 54 };
-}
 
 /**
  * The Spin mechanism — a shallow cinematic ellipse of posters that turns
@@ -46,20 +52,22 @@ function geometryForWidth(width: number): SpinGeometry {
  * is direct DOM style writes via rAF (no React state per frame, no re-renders
  * during rotation). The pick is the card nearest the apex.
  *
- * Interaction: drag rotates the rail, tapping/clicking flies a poster to the
- * centre, arrow keys step through the ring, and auto-rotation pauses while the
- * user is in control, resuming after a calm pause.
+ * Interaction: a press that moves past the drag threshold rotates the ring so
+ * the card under the finger follows it; releasing settles on the nearest
+ * candidate (shortest arc, never stopping between slots). A press without
+ * movement is a tap and flies the card under the finger to the centre. Arrow
+ * keys step through the ring, and auto-rotation pauses while the user is in
+ * control, resuming after a calm pause.
  */
 export default function SpinOrbit({
   candidates,
   reducedMotion,
   onPickChange,
 }: Props) {
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const cardRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
   const ring = candidates.slice(0, RING_COUNT);
   const count = ring.length;
+
+  const cardRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const phaseRef = useRef(0);
   const geometryRef = useRef<SpinGeometry>(DEFAULT_SPIN_GEOMETRY);
@@ -68,8 +76,8 @@ export default function SpinOrbit({
   const lastTRef = useRef(0);
 
   const draggingRef = useRef(false);
-  const movedRef = useRef(false);
-  const lastXRef = useRef(0);
+  const gestureRef = useRef<SpinPointerGesture | null>(null);
+  const pointerFlagRef = useRef<{ kind: "drag" | "tap"; at: number } | null>(null);
   const autoPausedRef = useRef(false);
   const lastInteractRef = useRef(0);
   const visibleRef = useRef(true);
@@ -82,6 +90,10 @@ export default function SpinOrbit({
   const onPickChangeRef = useRef(onPickChange);
 
   const [pick, setPick] = useState(0);
+
+  const { ref: canvasRef, layout } = useSpinViewportLayout((next) => {
+    geometryRef.current = next.geometry;
+  });
 
   useEffect(() => {
     reducedMotionRef.current = reducedMotion;
@@ -99,18 +111,33 @@ export default function SpinOrbit({
       const card = cards[i];
       if (!card) continue;
 
-      const layout = cardLayout(i, count, phaseRef.current, geometry);
-      card.style.left = `${layout.x}%`;
-      card.style.top = `${layout.y}%`;
-      card.style.opacity = layout.opacity.toFixed(3);
-      card.style.zIndex = String(layout.zIndex);
-      card.style.transform = `translate(-50%,-50%) scale(${layout.scale.toFixed(3)})`;
+      const l = cardLayout(i, count, phaseRef.current, geometry);
+      card.style.left = `${l.x}%`;
+      card.style.top = `${l.y}%`;
+      card.style.opacity = l.opacity.toFixed(3);
+      card.style.zIndex = String(l.zIndex);
+      card.style.transform = `translate(-50%,-50%) scale(${l.scale.toFixed(3)})`;
     }
 
-    const active = pickIndex(phaseRef.current, count);
-    if (active !== pickIndexRef.current) {
-      pickIndexRef.current = active;
-      setPick(active);
+    // The pick is only recomputed when nothing is moving under user control.
+    // During a drag or an ease the candidate is resolved once, at the end, so
+    // the information panel never churns on raw pointer movement.
+    if (!draggingRef.current && !easeActiveRef.current) {
+      const active = pickIndex(phaseRef.current, count);
+      if (active !== pickIndexRef.current) {
+        pickIndexRef.current = active;
+        setPick(active);
+      }
+    }
+  };
+
+  /** Resolves the pick once, when a snap/selection ease has finished. */
+  const finalizePick = () => {
+    if (count === 0) return;
+    const target = pickIndex(phaseRef.current, count);
+    if (target !== pickIndexRef.current) {
+      pickIndexRef.current = target;
+      setPick(target);
     }
   };
 
@@ -138,6 +165,7 @@ export default function SpinOrbit({
           if (progress >= 1) {
             phaseRef.current = easeToRef.current;
             easeActiveRef.current = false;
+            finalizePick();
             lastInteractRef.current = now;
             autoPausedRef.current = true;
           } else {
@@ -177,22 +205,8 @@ export default function SpinOrbit({
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
-
-  useLayoutEffect(() => {
-    const el = canvasRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-
-    const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width ?? 0;
-      geometryRef.current = geometryForWidth(width);
-      applyFrame();
-    });
-
-    observer.observe(el);
-    return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candidates]);
+  }, []);
 
   function beginInteraction(now: number) {
     lastInteractRef.current = now;
@@ -218,40 +232,89 @@ export default function SpinOrbit({
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (count === 0) return;
+
+    gestureRef.current = createSpinPointerGesture(e.clientX, e.clientY);
     draggingRef.current = true;
-    movedRef.current = false;
-    lastXRef.current = e.clientX;
+    pointerFlagRef.current = null;
     beginInteraction(e.timeStamp);
     e.currentTarget.setPointerCapture(e.pointerId);
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!draggingRef.current) return;
+    const gesture = gestureRef.current;
+    if (!gesture || !draggingRef.current) return;
 
-    const dx = e.clientX - lastXRef.current;
-    if (Math.abs(dx) > DRAG_TAP_THRESHOLD) movedRef.current = true;
-    phaseRef.current -= dx * DRAG_FACTOR;
-    lastXRef.current = e.clientX;
+    const width = canvasRef.current?.clientWidth ?? 0;
+    const degPerPx = dragDegPerPx(width, geometryRef.current.rx);
+    phaseRef.current += advanceSpinGesture(gesture, e.clientX, e.clientY, degPerPx);
   }
 
-  function endDrag() {
+  /**
+   * Ends a pointer interaction. A real drag settles on the nearest candidate
+   * (shortest arc); a tap is left to the pointer-up handler to select. When
+   * the browser cancels the gesture (e.g. it took over for vertical scroll)
+   * the same snap invariant applies, so the ring never stops between slots.
+   */
+  function endInteraction(now: number) {
     if (!draggingRef.current) return;
+
+    const gesture = gestureRef.current;
     draggingRef.current = false;
-    lastInteractRef.current = performance.now();
+    gestureRef.current = null;
+    lastInteractRef.current = now;
     autoPausedRef.current = true;
 
-    if (!movedRef.current || reducedMotionRef.current || count === 0) return;
+    if (!gesture || gestureEndedAsTap(gesture) || reducedMotionRef.current || count === 0) {
+      return;
+    }
 
     const active = pickIndex(phaseRef.current, count);
     easeFromRef.current = phaseRef.current;
     easeToRef.current = alignPhase(phaseRef.current, count, active);
-    easeStartRef.current = performance.now();
+    easeStartRef.current = now;
     easeDurationRef.current = SNAP_EASE_MS;
     easeActiveRef.current = true;
   }
 
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    const gesture = gestureRef.current;
+    endInteraction(e.timeStamp);
+
+    if (gesture && gestureEndedAsTap(gesture)) {
+      pointerFlagRef.current = { kind: "tap", at: e.timeStamp };
+
+      const hit = document
+        .elementFromPoint(e.clientX, e.clientY)
+        ?.closest?.("[data-spin-index]");
+      const index = hit ? Number(hit.getAttribute("data-spin-index")) : -1;
+
+      if (index >= 0 && index < count) {
+        selectCard(index, e.timeStamp);
+      }
+    } else if (gesture) {
+      pointerFlagRef.current = { kind: "drag", at: e.timeStamp };
+    }
+  }
+
+  function onPointerCancel(e: React.PointerEvent<HTMLDivElement>) {
+    endInteraction(e.timeStamp);
+  }
+
+  /**
+   * Keyboard activation path (Enter/Space on a focused card) and a safety net
+   * for browsers that still synthesize a click after a pointer interaction.
+   * The pointer handlers already select on tap / rotate on drag, so any click
+   * still in flight from that gesture is swallowed. The timestamp comes from
+   * the JSX event prop, matching the repo's lint pattern for impure calls.
+   */
   function onCardClick(index: number, now: number) {
-    if (movedRef.current) return; // was a drag, not a tap
+    const flagged = pointerFlagRef.current;
+    if (flagged && now - flagged.at < POINTER_FLAG_EXPIRY_MS) {
+      pointerFlagRef.current = null;
+      return;
+    }
+    pointerFlagRef.current = null;
     selectCard(index, now);
   }
 
@@ -280,9 +343,10 @@ export default function SpinOrbit({
         onKeyDown={onKeyDown}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        className="relative h-[320px] touch-pan-y select-none overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-white/30 sm:h-[360px] md:h-[440px]"
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        style={{ height: layout.canvasHeight }}
+        className="relative w-full touch-pan-y select-none overflow-hidden outline-none cursor-grab active:cursor-grabbing focus-visible:ring-1 focus-visible:ring-white/30"
       >
         <div className="absolute inset-0">
           {count > 0 &&
@@ -296,13 +360,13 @@ export default function SpinOrbit({
                   ref={(el) => {
                     cardRefs.current[i] = el;
                   }}
+                  data-spin-index={i}
                   aria-label={`Select ${candidate.title}`}
                   aria-current={isActive ? "true" : undefined}
                   onClick={() => onCardClick(i, performance.now())}
-                  className={`absolute w-24 transition-shadow duration-700 sm:w-28 md:w-36 lg:w-40 ${
-                    isActive
-                      ? "rounded-xl ring-1 ring-white/70 shadow-[0_24px_60px_rgba(0,0,0,0.55)]"
-                      : "rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.4)]"
+                  style={{ width: layout.posterWidth }}
+                  className={`absolute rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-shadow duration-700 ${
+                    isActive ? "ring-1 ring-white/80 shadow-[0_24px_60px_rgba(0,0,0,0.6)]" : ""
                   }`}
                 >
                   <img

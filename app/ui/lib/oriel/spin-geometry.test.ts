@@ -9,17 +9,27 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  DRAG_TAP_THRESHOLD_PX,
+  advanceSpinGesture,
   alignPhase,
   cardLayout,
+  createSpinPointerGesture,
+  dragDegPerPx,
   easeOutCubic,
   formatRuntime,
   formatSpinMetadata,
+  gestureEndedAsTap,
   nextIndex,
   normalizeDeg,
   pickIndex,
+  posterWidthForViewport,
   prevIndex,
   shouldAutoRotate,
   slotDiff,
+  snapTargetPhase,
+  spinCanvasHeightForViewport,
+  spinGeometryForViewport,
+  spinLayoutForViewport,
 } from "./spin-geometry";
 
 const almost = (a: number, b: number) =>
@@ -233,5 +243,230 @@ describe("shouldAutoRotate", () => {
   it("auto-rotates unless the user prefers reduced motion", () => {
     assert.equal(shouldAutoRotate(false), true);
     assert.equal(shouldAutoRotate(true), false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Drag gesture model — tap vs drag classification & rotation
+// ---------------------------------------------------------------------------
+
+describe("drag gesture", () => {
+  const DEG = 0.5;
+
+  it("does not rotate below the drag threshold (tap stays a tap)", () => {
+    const g = createSpinPointerGesture(100, 200);
+    assert.equal(advanceSpinGesture(g, 100 + DRAG_TAP_THRESHOLD_PX - 1, 200, DEG), 0);
+    assert.equal(g.moved, false);
+    assert.equal(gestureEndedAsTap(g), true);
+  });
+
+  it("begins dragging only once the threshold is crossed", () => {
+    const g = createSpinPointerGesture(100, 200);
+    assert.equal(advanceSpinGesture(g, 102, 200, DEG), 0);
+    assert.equal(g.moved, false);
+    assert.equal(advanceSpinGesture(g, 100 + DRAG_TAP_THRESHOLD_PX, 200, DEG), DEG * DRAG_TAP_THRESHOLD_PX);
+    assert.equal(g.moved, true);
+    assert.equal(gestureEndedAsTap(g), false);
+  });
+
+  it("applies per-move deltas after the threshold, with no double count", () => {
+    const g = createSpinPointerGesture(0, 0);
+    advanceSpinGesture(g, 10, 0, DEG); // crosses threshold, applies 10px worth
+    const next = advanceSpinGesture(g, 14, 0, DEG); // +4px more
+    assert.equal(next, 4 * DEG);
+  });
+
+  it("maps a rightward drag to positive rotation (content follows the finger)", () => {
+    const g = createSpinPointerGesture(0, 0);
+    const rotation = advanceSpinGesture(g, DRAG_TAP_THRESHOLD_PX, 0, DEG);
+    assert.ok(rotation > 0, "rightward drag must advance the phase");
+    const g2 = createSpinPointerGesture(0, 0);
+    const rotationLeft = advanceSpinGesture(g2, -DRAG_TAP_THRESHOLD_PX, 0, DEG);
+    assert.ok(rotationLeft < 0, "leftward drag must reverse the phase");
+  });
+
+  it("maps any vertical movement at or below the threshold back to a tap", () => {
+    const g = createSpinPointerGesture(0, 0);
+    advanceSpinGesture(g, 0, 30, DEG); // vertical drag, no horizontal movement
+    assert.equal(g.moved, true, "vertical drag still counts as a drag");
+    assert.equal(gestureEndedAsTap(g), false);
+  });
+
+  it("classifies a zero-distance release as a tap", () => {
+    const g = createSpinPointerGesture(50, 50);
+    assert.equal(gestureEndedAsTap(g), true);
+  });
+
+  it("keeps state clean across rapid gesture recreation", () => {
+    let g = createSpinPointerGesture(0, 0);
+    advanceSpinGesture(g, 40, 0, DEG); // a full drag
+    assert.equal(g.moved, true);
+    g = createSpinPointerGesture(400, 0); // new press on release
+    assert.equal(g.moved, false);
+    assert.equal(advanceSpinGesture(g, 401, 0, DEG), 0);
+    assert.equal(gestureEndedAsTap(g), true);
+  });
+});
+
+describe("dragDegPerPx", () => {
+  it("rotates faster on narrow canvases so a slot is reachable in one swipe", () => {
+    assert.ok(dragDegPerPx(360, 34) > dragDegPerPx(1440, 40));
+  });
+
+  it("scales with the ring radius (1:1 arc tracking)", () => {
+    const width = 720;
+    const rx = 40;
+    const radiusPx = (rx / 100) * width;
+    assert.ok(Math.abs(dragDegPerPx(width, rx) - 360 / (2 * Math.PI * radiusPx)) < 1e-12);
+  });
+
+  it("is well-defined for a zero-size canvas", () => {
+    assert.ok(Number.isFinite(dragDegPerPx(0, 40)));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Release snap — nearest candidate, shortest direction
+// ---------------------------------------------------------------------------
+
+describe("snapTargetPhase", () => {
+  it("centres the candidate nearest the apex at release", () => {
+    for (const phase of [0, 12, 57, 123, 260, 543, 1099, -90, 410]) {
+      const target = snapTargetPhase(phase, 7);
+      assert.equal(
+        pickIndex(target, 7),
+        pickIndex(phase, 7),
+        `snap must keep the same pick at phase ${phase}`
+      );
+      assert.ok(
+        Math.abs(slotDiff(pickIndex(phase, 7), 7, target)) < 1e-9,
+        `selected card must sit at the apex after snap at phase ${phase}`
+      );
+    }
+  });
+
+  it("chooses the shortest rotation direction", () => {
+    for (const phase of [0, 12, 57, 123, 260, 543, 1099, -90, 410]) {
+      const target = snapTargetPhase(phase, 7);
+      assert.ok(
+        Math.abs(target - phase) <= 180,
+        `snap arc must never exceed 180° at phase ${phase}`
+      );
+    }
+  });
+
+  it("is deterministic across whole rotations", () => {
+    for (const phase of [12, 123, 260, 543]) {
+      almost(
+        normalizeDeg(snapTargetPhase(phase + 360, 7)),
+        normalizeDeg(snapTargetPhase(phase, 7))
+      );
+    }
+  });
+
+  it("returns the phase unchanged for an empty ring", () => {
+    assert.equal(snapTargetPhase(45, 0), 45);
+  });
+
+  it("leaves an already-aligned phase untouched", () => {
+    assert.equal(snapTargetPhase(0, 7), 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Responsive viewport geometry — deliberate sizing, no clipping, no overflow
+// ---------------------------------------------------------------------------
+
+describe("posterWidthForViewport / spinCanvasHeightForViewport", () => {
+  it("steps posters and canvas up with the canvas width", () => {
+    assert.equal(posterWidthForViewport(350), 96);
+    assert.equal(posterWidthForViewport(640), 112);
+    assert.equal(posterWidthForViewport(768), 144);
+    assert.equal(posterWidthForViewport(1440), 160);
+
+    assert.equal(spinCanvasHeightForViewport(350), 320);
+    assert.equal(spinCanvasHeightForViewport(640), 360);
+    assert.equal(spinCanvasHeightForViewport(768), 440);
+    assert.equal(spinCanvasHeightForViewport(1440), 480);
+  });
+
+  it("never exceeds the canvas with a zero-width input", () => {
+    const layout = spinLayoutForViewport(0);
+    assert.ok(layout.canvasHeight > 0 && layout.posterWidth > 0);
+    assert.ok(layout.geometry.rx > 0);
+  });
+});
+
+describe("spinLayoutForViewport", () => {
+  const WIDTHS = [320, 350, 360, 390, 430, 640, 768, 1024, 1440];
+
+  it("keeps every card fully inside the canvas at every phase (no clipping, no horizontal overflow)", () => {
+    for (const width of WIDTHS) {
+      const { geometry, posterWidth, canvasHeight } = spinLayoutForViewport(width);
+      for (let phase = -180; phase <= 720; phase += 3.7) {
+        for (let i = 0; i < 7; i++) {
+          const { x, y, scale } = cardLayout(i, 7, phase, geometry);
+          const halfW = (posterWidth * scale) / 2;
+          const halfH = (posterWidth * 1.5 * scale) / 2;
+          const centerX = (x / 100) * width;
+          const centerY = (y / 100) * canvasHeight;
+
+          assert.ok(
+            centerX - halfW >= 0,
+            `left clip at width=${width} phase=${phase} i=${i}`
+          );
+          assert.ok(
+            centerX + halfW <= width,
+            `right overflow at width=${width} phase=${phase} i=${i}`
+          );
+          assert.ok(
+            centerY - halfH >= 0,
+            `top clip at width=${width} phase=${phase} i=${i}`
+          );
+          assert.ok(
+            centerY + halfH <= canvasHeight,
+            `bottom clip at width=${width} phase=${phase} i=${i}`
+          );
+        }
+      }
+    }
+  });
+
+  it("keeps the important neighbouring posters inside the viewport", () => {
+    for (const width of WIDTHS) {
+      const { geometry, posterWidth } = spinLayoutForViewport(width);
+      // Adjacent cards (diff ±51.43) carry the highest scale off-centre.
+      for (const i of [1, 6]) {
+        const { x, scale } = cardLayout(i, 7, 0, geometry);
+        const halfW = (posterWidth * scale) / 2;
+        const centerX = (x / 100) * width;
+        assert.ok(centerX - halfW >= 4, `adjacent card too close to edge at ${width}`);
+        assert.ok(centerX + halfW <= width - 4, `adjacent card too close to edge at ${width}`);
+      }
+    }
+  });
+
+  it("uses a tighter ellipse on narrow phones than on desktop", () => {
+    assert.ok(
+      spinGeometryForViewport(360).rx < spinGeometryForViewport(1440).rx,
+      "narrow geometry must pull the ring in"
+    );
+    assert.ok(
+      spinGeometryForViewport(360).ry < spinGeometryForViewport(1440).ry,
+      "narrow geometry must flatten the ellipse"
+    );
+  });
+
+  it("is deterministic for identical inputs", () => {
+    assert.deepEqual(spinLayoutForViewport(390), spinLayoutForViewport(390));
+  });
+
+  it("keeps the initial composition unchanged at phase 0", () => {
+    const layout = spinLayoutForViewport(1440);
+    const apex = cardLayout(0, 7, 0, layout.geometry);
+    almost(apex.diff, 0);
+    almost(apex.proximity, 1);
+    assert.equal(pickIndex(0, 7), 0, "engine's strongest candidate opens the ring");
+    assert.deepEqual(cardLayout(0, 7, 0), cardLayout(0, 7, 0), "default layout unchanged");
   });
 });
