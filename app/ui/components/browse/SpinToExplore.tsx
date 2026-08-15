@@ -9,8 +9,10 @@ import { useSpinViewportLayout } from "@/components/browse/useSpinViewportLayout
 import { fetchSpin, type SpinUiCandidate } from "@/lib/oriel/spin-client";
 import type { DiscoveryQuery } from "@/lib/oriel/discovery-client";
 import { cardLayout, formatSpinMetadata } from "@/lib/oriel/spin-geometry";
-
-const SPIN_LIMIT = 20;
+import {
+  DEFAULT_SPIN_INTENT,
+  buildSpinQuery,
+} from "@/lib/oriel/browse-query";
 
 const GENRES = [
   "Action",
@@ -44,8 +46,6 @@ const MOODS = [
 ];
 
 type Props = {
-  value: DiscoveryQuery;
-  onChange: (next: DiscoveryQuery) => void;
   mediaType: "movie" | "tv";
 };
 
@@ -70,12 +70,15 @@ function subscribePrefersReducedMotion(onStoreChange: () => void): () => void {
  * recommendation logic stays in the engine: this component only fetches,
  * arranges and animates what buildSpinSet already decided.
  *
- * The page always lands on a valid curated intent (BrowseClient defaults the
- * shared query to a genre), so the ring never starts broken. Only if the user
- * deliberately clears every dimension does the section show a quiet editorial
- * invitation instead of fetching an invalid request.
+ * The section owns its exploration intent (genre + mood) locally — it never
+ * reaches the rest of the page. It always lands on a valid curated intent
+ * (DEFAULT_SPIN_INTENT) so the ring starts well-formed and the engine never
+ * sees an invalid request. Only if the user deliberately clears every
+ * dimension does the section show a quiet editorial invitation instead of
+ * fetching an invalid request.
  */
-export default function SpinToExplore({ value, onChange, mediaType }: Props) {
+export default function SpinToExplore({ mediaType }: Props) {
+  const [intent, setIntent] = useState<DiscoveryQuery>(DEFAULT_SPIN_INTENT);
   const [candidates, setCandidates] = useState<SpinUiCandidate[] | null>(null);
   const [fetchFailed, setFetchFailed] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -86,7 +89,7 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
     () => false
   );
 
-  const dimensions = [value.genre, value.mood].filter(
+  const dimensions = [intent.genre, intent.mood].filter(
     (d): d is string => Boolean(d?.trim())
   );
   const intentEmpty = dimensions.length === 0;
@@ -96,12 +99,7 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
 
     let cancelled = false;
 
-    fetchSpin({
-      genre: value.genre,
-      mood: value.mood,
-      mediaType,
-      limit: SPIN_LIMIT,
-    })
+    fetchSpin(buildSpinQuery(intent, mediaType))
       .then((list) => {
         if (cancelled) return;
         setFetchFailed(false);
@@ -116,7 +114,7 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [intentEmpty, value.genre, value.mood, mediaType, retryKey]);
+  }, [intentEmpty, intent, mediaType, retryKey]);
 
   const status = intentEmpty
     ? "invite"
@@ -156,17 +154,17 @@ export default function SpinToExplore({ value, onChange, mediaType }: Props) {
         <div className="flex flex-wrap items-end gap-3 lg:pb-1">
           <SelectField
             label="Genre"
-            value={value.genre?.trim()}
+            value={intent.genre?.trim()}
             placeholder="All genres"
             options={GENRES}
-            onChange={(genre) => onChange({ ...value, genre })}
+            onChange={(genre) => setIntent({ ...intent, genre })}
           />
           <SelectField
             label="Mood"
-            value={value.mood?.trim()}
+            value={intent.mood?.trim()}
             placeholder="Any mood"
             options={MOODS}
-            onChange={(mood) => onChange({ ...value, mood })}
+            onChange={(mood) => setIntent({ ...intent, mood })}
           />
         </div>
       </div>

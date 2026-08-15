@@ -8,19 +8,18 @@ import SpinToExplore from "@/components/browse/SpinToExplore";
 import RhythmSection from "@/components/browse/RhythmSection";
 import ThisWeekSection from "@/components/browse/ThisWeekSection";
 import type { Movie } from "@/components/movies/MovieCard";
-import {
-  fetchDiscovery,
-  type DiscoveryQuery,
-} from "@/lib/oriel/discovery-client";
+import { fetchDiscovery } from "@/lib/oriel/discovery-client";
+import { buildRhythmQuery } from "@/lib/oriel/browse-query";
 import { fetchTrending } from "@/lib/tmdb/trending-client";
 
 export default function BrowseClient() {
   const searchParams = useSearchParams();
   const type = searchParams.get("type") === "tv" ? "tv" : "movie";
 
-  // The page lands on a valid curated intent so the Spin request is always
-  // well-formed from the first paint (the engine requires genre and/or mood).
-  const [query, setQuery] = useState<DiscoveryQuery>({ genre: "Drama" });
+  // Rhythm's content is page-level editorial state: it always fetches its own
+  // fixed editorial baseline for the page's media scope. Spin's exploration
+  // intent (genre/mood) lives inside SpinToExplore and never reaches this
+  // fetch, so changing Spin cannot move Rhythm.
   const [featured, setFeatured] = useState<Movie | null>(null);
   const [movies, setMovies] = useState<Movie[]>([]);
   const [weekly, setWeekly] = useState<Movie[]>([]);
@@ -34,12 +33,7 @@ export default function BrowseClient() {
         setLoading(true);
 
         const [curated, trending] = await Promise.allSettled([
-          fetchDiscovery({
-            genre: query.genre,
-            mood: query.mood,
-            mediaType: type,
-            limit: 40,
-          }),
+          fetchDiscovery(buildRhythmQuery(type)),
           fetchTrending(type),
         ]);
 
@@ -75,7 +69,7 @@ export default function BrowseClient() {
     return () => {
       cancelled = true;
     };
-  }, [type, query]);
+  }, [type]);
 
   if (loading) {
     return (
@@ -99,7 +93,7 @@ export default function BrowseClient() {
       )}
 
       <main className="mx-auto max-w-7xl px-5 md:px-6">
-        <SpinToExplore value={query} onChange={setQuery} mediaType={type} />
+        <SpinToExplore mediaType={type} />
 
         <RhythmSection movies={movies} />
 
