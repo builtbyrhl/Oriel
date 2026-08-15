@@ -1,0 +1,6 @@
+{
+  "name": "Oriel (app/ui)",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24-bookworm",
+  "postStartCommand": "bash .devcontainer/codespace-start.sh",
+  "forwardPorts": [3000]
+}
