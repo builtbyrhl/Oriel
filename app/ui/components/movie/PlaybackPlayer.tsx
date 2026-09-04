@@ -144,9 +144,10 @@ export default function PlaybackPlayer({
               src={sourceUrl}
               title={`${title} player`}
               className="h-full w-full"
-              allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups-to-escape-sandbox"
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-read; clipboard-write"
               allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
+              referrerPolicy="no-referrer"
             />
           </div>
           <div className="flex flex-col gap-4 p-6 text-sm text-white/50 md:flex-row md:items-center md:justify-between">

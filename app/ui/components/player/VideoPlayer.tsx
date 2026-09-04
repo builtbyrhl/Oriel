@@ -35,9 +35,10 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
         src={src}
         title={title ?? "Player"}
         className="h-full w-full border-0"
-        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups-to-escape-sandbox"
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-read; clipboard-write"
         allowFullScreen
-        referrerPolicy="origin"
+        referrerPolicy="no-referrer"
         onLoad={() => setReady(true)}
       />
     </div>
