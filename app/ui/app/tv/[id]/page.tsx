@@ -103,10 +103,23 @@ export default async function TvPage({
           />
         </div>
 
-        <MovieClient
+         <MovieClient
           movieId={tv.id}
           movieTitle={title}
           contentType="series"
+          seasons={
+            Array.isArray(tv?.seasons)
+              ? tv.seasons
+                  .filter(
+                    (s: { season_number?: number; episode_count?: number }) =>
+                      (s.season_number ?? 0) >= 1,
+                  )
+                  .map((s: { season_number: number; episode_count?: number }) => ({
+                    season: s.season_number,
+                    episodes: s.episode_count ?? 0,
+                  }))
+              : undefined
+          }
           credits={credits}
         />
       </section>

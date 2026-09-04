@@ -14,6 +14,15 @@ interface PlayerOverlayProps {
   onClose: () => void;
 }
 
+function storageKey(
+  tmdbId: number,
+  type: MediaType,
+  season?: number,
+  episode?: number,
+) {
+  return `oriel:player:last:${type}:${tmdbId}:${season ?? 1}:${episode ?? 1}`;
+}
+
 export default function PlayerOverlay({
   tmdbId,
   type,
@@ -22,21 +31,26 @@ export default function PlayerOverlay({
   episode = 1,
   onClose,
 }: PlayerOverlayProps) {
-  const [activeSourceIndex, setActiveSourceIndex] = useState(0);
-  const [loaded, setLoaded] = useState(false);
-
   const stream = useMemo(
     () => getStream({ tmdbId, type, season, episode }),
     [tmdbId, type, season, episode]
   );
 
-  const active = stream.sources[activeSourceIndex];
+  const [activeSourceIndex, setActiveSourceIndex] = useState(() => {
+    if (stream.sources.length <= 1) return 0;
+    const saved =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem(
+            storageKey(tmdbId, type, season, episode),
+          )
+        : null;
+    const parsed = saved ? Number(saved) : NaN;
+    return Number.isFinite(parsed) && parsed >= 0 && parsed < stream.sources.length
+      ? parsed
+      : 0;
+  });
 
-  useEffect(() => {
-    setLoaded(false);
-    const t = setTimeout(() => setLoaded(true), 1800);
-    return () => clearTimeout(t);
-  }, [activeSourceIndex, tmdbId, type, season, episode]);
+  const active = stream.sources[activeSourceIndex];
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -49,6 +63,21 @@ export default function PlayerOverlay({
       document.body.style.overflow = "";
     };
   }, [onClose]);
+
+  const onSelect = (index: number) => {
+    setActiveSourceIndex(index);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        storageKey(tmdbId, type, season, episode),
+        String(index),
+      );
+    }
+  };
+
+  const onNext = () => {
+    if (stream.sources.length <= 1) return;
+    onSelect((activeSourceIndex + 1) % stream.sources.length);
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-sm">
@@ -65,11 +94,21 @@ export default function PlayerOverlay({
         </div>
 
         <div className="flex items-center gap-2">
+          {stream.sources.length > 1 && active?.url ? (
+            <button
+              onClick={onNext}
+              className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/75 opacity-75 transition hover:opacity-100 hover:bg-white/15"
+              title="Source not working? Try the next one"
+            >
+              ↻ Next source
+            </button>
+          ) : null}
           <select
             value={activeSourceIndex}
-            onChange={(e) => setActiveSourceIndex(Number(e.target.value))}
+            onChange={(e) => onSelect(Number(e.target.value))}
             className="rounded-md border border-white/15 bg-white/5 px-2 py-1.5 text-xs text-white outline-none focus:border-white/40"
             aria-label="Switch source"
+            disabled={stream.sources.length === 0}
           >
             {stream.sources.map((s, i) => (
               <option key={s.provider} value={i} className="bg-zinc-900">
@@ -88,15 +127,13 @@ export default function PlayerOverlay({
       </header>
 
       <div className="relative flex-1">
-        {!loaded && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-9 w-9 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-              <p className="text-xs text-white/60">Loading {active.label}…</p>
-            </div>
+        {active?.url ? (
+          <VideoPlayer key={active.url} src={active.url} title={title} />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-xs text-white/40">
+            No playable sources for this title.
           </div>
         )}
-        <VideoPlayer key={active.url} src={active.url} title={title} />
       </div>
     </div>
   );
