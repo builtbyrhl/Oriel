@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Oriel",
-  description: "Quiet cinema.",
+  title: "Oriel — Cinema, curated",
+  description: "A curated discovery and playback platform for cinema.",
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#0a0807]">
+      <body className="min-h-full flex flex-col bg-[#050507]">
         <WhisperCursor />
         <WhisperScroll />
         {children}

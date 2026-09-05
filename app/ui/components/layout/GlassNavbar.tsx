@@ -42,14 +42,14 @@ function GlassNavbarInner({ variant = "default" }: GlassNavbarProps) {
             ? "border-white/10 bg-white/8 backdrop-blur-3xl"
             : variant === "immersive"
             ? "border-transparent bg-transparent backdrop-blur-none shadow-none"
-            : "border-[#f5f1ea]/[0.08] bg-[#0a0807]/[0.7] backdrop-blur-2xl"
+            : "border-white/[0.06] bg-[#050507]/[0.6] backdrop-blur-2xl"
         }` }>
 
           <div className="flex h-14 md:h-16 items-center justify-between px-4 md:px-6">
 
             <Link
-              href="/browse"
-              className="text-lg md:text-xl font-light tracking-[0.45em] text-[#f5f1ea]"
+              href="/"
+              className="text-lg md:text-xl font-light tracking-[0.45em] text-white"
             >
               ORIEL
             </Link>
@@ -71,16 +71,16 @@ function GlassNavbarInner({ variant = "default" }: GlassNavbarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`relative transition ${
+                    className={`relative text-sm font-light tracking-wide transition ${
                       active
-                        ? "text-[#f5f1ea]"
-                        : "text-[#f5f1ea]/55 hover:text-[#f5f1ea]"
+                        ? "text-white"
+                        : "text-white/50 hover:text-white"
                     }`}
                   >
                     {item.label}
 
                     {active && (
-                      <span className="absolute -bottom-2 left-0 h-[1px] w-full rounded-full bg-[#d4af37]/50" />
+                      <span className="absolute -bottom-2 left-0 h-[1px] w-full rounded-full bg-white/50" />
                     )}
 
                   </Link>
@@ -93,27 +93,27 @@ function GlassNavbarInner({ variant = "default" }: GlassNavbarProps) {
 
               <button
                 onClick={() => setSearchOpen(true)}
-                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105"
+                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105 text-white/60 hover:text-white"
               >
                 <Search size={18} />
               </button>
 
               <Link
                 href="/collection"
-                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105 md:hidden"
+                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105 text-white/60 hover:text-white md:hidden"
               >
                 <Heart size={18} />
               </Link>
 
               <button
-                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105"
+                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105 text-white/60 hover:text-white"
               >
                 <User size={18} />
               </button>
 
               <button
                 onClick={() => setMenuOpen(true)}
-                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105 md:hidden"
+                className="rounded-full p-2 transition-all duration-300 hover:bg-white/10 hover:scale-105 text-white/60 hover:text-white md:hidden"
               >
                 <Menu size={18} />
               </button>
