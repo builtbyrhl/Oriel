@@ -35,7 +35,7 @@ export function getStream({ tmdbId, type, season = 1, episode = 1 }: GetStreamAr
       provider: p.name,
       label: p.label,
       url: buildProviderUrl(p, tmdbId, type === "movie" ? "movie" : "tv", season, episode),
-      kind: p.name === SELFHOSTED_PROVIDER ? "mp4" : "iframe",
+      kind: (p.name === SELFHOSTED_PROVIDER ? "mp4" : "iframe") as "iframe" | "mp4",
     }))
     // drop any provider that can't serve this content type
     .filter((s) => Boolean(s.url));
