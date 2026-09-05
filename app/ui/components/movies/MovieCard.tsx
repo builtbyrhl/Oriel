@@ -10,7 +10,7 @@ export type Movie = {
   genre: string;
   year: string;
   image: string;
-  contentType?: "movie" | "series";
+  contentType: "movie" | "series";
 };
 
 type Props = {

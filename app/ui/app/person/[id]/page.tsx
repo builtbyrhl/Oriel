@@ -115,7 +115,8 @@ export default async function PersonPage({ params }: Props) {
                     year: (movie.release_date||"").slice(0,4),
                     image: movie.poster_path
                       ? "https://image.tmdb.org/t/p/w500"+movie.poster_path
-                      : "https://placehold.co/500x750?text=Movie"
+                      : "https://placehold.co/500x750?text=Movie",
+                    contentType: "movie"
                   }}
                 />
               ))}
