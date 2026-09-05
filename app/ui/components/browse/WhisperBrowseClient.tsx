@@ -5,17 +5,11 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import GlassNavbar from "@/components/layout/GlassNavbar";
 import WhisperHero from "@/components/browse/WhisperHero";
+import OrbitalWheelSection from "@/components/browse/OrbitalWheelSection";
+import HoverExpandList from "@/components/browse/HoverExpandList";
 import WhisperRow from "@/components/browse/WhisperRow";
-import CardStackSection from "@/components/browse/CardStackSection";
 import WhisperContinueWatching from "@/components/continue-watching/WhisperContinueWatching";
-
-const EASE = [0.25, 0.1, 0.25, 1] as const;
-
-const ROWS = [
-  { key: "trending", title: "Trending", index: "03" },
-  { key: "popular", title: "Popular", index: "04" },
-  { key: "topRated", title: "Critically Acclaimed", index: "05" },
-] as const;
+import type { Movie } from "@/components/movies/MovieCard";
 
 type RowMovie = {
   id: number;
@@ -26,12 +20,24 @@ type RowMovie = {
   contentType: "movie" | "series";
 };
 
+const ROWS = [
+  { key: "trending", title: "Trending", index: "03" },
+  { key: "popular", title: "Popular", index: "04" },
+  { key: "topRated", title: "Critically Acclaimed", index: "05" },
+] as const;
+
+const EASE = [0.23, 1, 0.32, 1] as const;
+
 export default function WhisperBrowseClient() {
   const searchParams = useSearchParams();
   const type = searchParams.get("type") === "tv" ? "tv" : "movie";
 
   const [featured, setFeatured] = useState<RowMovie | null>(null);
   const [rows, setRows] = useState<Record<string, RowMovie[]>>({});
+  const [expandItems, setExpandItems] = useState<{
+    id: number; title: string; subtitle: string; image: string;
+    rating: number; year: string; description: string; contentType: "movie" | "series";
+  }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -71,6 +77,16 @@ export default function WhisperBrowseClient() {
           popular: map(popData.results || []),
           topRated: map(topData.results || []),
         });
+
+        // Expand list — use trending movies with descriptions
+        const expand = trend.slice(0, 6).map((m) => ({
+          ...m,
+          subtitle: m.genre,
+          description: "A featured selection from the trending catalogue.",
+          image: m.image,
+          rating: 8.0,
+        }));
+        setExpandItems(expand);
       } catch (err) {
         console.error(err);
         setFeatured(null);
@@ -85,13 +101,13 @@ export default function WhisperBrowseClient() {
   }, [type]);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#0a0807] text-[#f5f1ea]">
-      {/* Subtle ambient */}
+    <main className="relative min-h-screen overflow-hidden bg-[#050507] text-white">
+      {/* Subtle background */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div
           className="absolute inset-0"
           style={{
-            background: "radial-gradient(ellipse 100% 80% at 50% 0%, rgba(30,25,20,0.6) 0%, #0a0807 60%, #000000 100%)",
+            background: "radial-gradient(ellipse 100% 70% at 50% 0%, rgba(20,18,30,0.8) 0%, #050507 55%, #000000 100%)",
           }}
         />
       </div>
@@ -103,34 +119,18 @@ export default function WhisperBrowseClient() {
         {loading ? (
           <div className="min-h-[90vh]" />
         ) : featured ? (
-          <WhisperHero movie={featured} type={type === "tv" ? "series" : "movie"} />
+          <WhisperHero movie={featured as never} type={type === "tv" ? "series" : "movie"} />
         ) : null}
 
-        {/* Catalogue */}
-        <div className="mx-auto max-w-7xl px-8 py-20 md:px-12 md:py-28">
+        <div className="mx-auto max-w-7xl px-6 py-20 md:px-12 md:py-28">
           {loading ? (
             <div className="space-y-16">
-              {["01", "02", "03"].map((n) => (
-                <div key={n}>
-                  <div className="mb-10 flex items-baseline gap-6">
-                    <span className="font-mono text-[10px] tabular-nums tracking-[0.3em] text-[#d4af37]/30">
-                      {n}
-                    </span>
-                    <div className="h-4 w-40 animate-pulse rounded-full bg-[#f5f1ea]/[0.04]" />
-                    <div className="h-px flex-1 bg-[#f5f1ea]/[0.04]" />
-                  </div>
-                  <div className="-mx-8 flex gap-4 px-8 overflow-x-auto">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="min-w-[150px] rounded-[12px] overflow-hidden bg-[#12100e] md:min-w-[200px]"
-                      >
-                        <div className="aspect-[2/3] animate-pulse bg-[#f5f1ea]/[0.03]" />
-                        <div className="p-3.5">
-                          <div className="h-3 w-3/4 animate-pulse rounded-full bg-[#f5f1ea]/[0.04]" />
-                          <div className="mt-2 h-2 w-1/3 animate-pulse rounded-full bg-[#f5f1ea]/[0.03]" />
-                        </div>
-                      </div>
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="space-y-4">
+                  <div className="h-5 w-40 animate-pulse rounded-full bg-white/[0.04]" />
+                  <div className="flex flex-col gap-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-[72px] animate-pulse rounded-2xl bg-white/[0.02]" />
                     ))}
                   </div>
                 </div>
@@ -138,9 +138,7 @@ export default function WhisperBrowseClient() {
             </div>
           ) : !featured ? (
             <div className="flex min-h-[40vh] items-center justify-center">
-              <p className="font-mono text-[10px] uppercase tracking-[0.5em] text-[#f5f1ea]/25">
-                No signal
-              </p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.5em] text-white/20">No signal</p>
             </div>
           ) : (
             <motion.div
@@ -148,29 +146,33 @@ export default function WhisperBrowseClient() {
               animate="visible"
               variants={{
                 hidden: { opacity: 0 },
-                visible: { opacity: 1, transition: { staggerChildren: 0.18 } },
+                visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
               }}
               className="space-y-20"
             >
-              {/* Continue watching */}
+              {/* Orbital Wheel — Editor's Picks */}
               <motion.div
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.9, ease: EASE } } }}
+                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.8, ease: EASE } } }}
               >
-                <WhisperContinueWatching />
+                <OrbitalWheelSection type={type} />
               </motion.div>
 
-              {/* Card stack carousel */}
+              {/* Hover Expand — Featured (skipper-ui style) */}
               <motion.div
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.9, ease: EASE } } }}
+                variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: EASE } } }}
               >
-                <CardStackSection type={type} />
+                <HoverExpandList
+                  title="Featured"
+                  index="01"
+                  items={expandItems}
+                />
               </motion.div>
 
-              {/* Catalogue rows */}
+              {/* Standard rows */}
               {ROWS.map((row) => (
                 <motion.div
                   key={row.key}
-                  variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.9, ease: EASE } } }}
+                  variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: EASE } } }}
                 >
                   <WhisperRow
                     title={row.title}
@@ -180,12 +182,19 @@ export default function WhisperBrowseClient() {
                 </motion.div>
               ))}
 
-              {/* Footer mark */}
+              {/* Continue watching */}
               <motion.div
-                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 1.2 } } }}
+                variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: EASE } } }}
+              >
+                <WhisperContinueWatching />
+              </motion.div>
+
+              {/* Footer */}
+              <motion.div
+                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 1 } } }}
                 className="pt-16 text-center"
               >
-                <span className="font-mono text-[9px] uppercase tracking-[0.6em] text-[#f5f1ea]/15">
+                <span className="font-mono text-[9px] uppercase tracking-[0.6em] text-white/12">
                   End of catalogue · {new Date().getFullYear()}
                 </span>
               </motion.div>

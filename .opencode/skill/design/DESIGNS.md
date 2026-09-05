@@ -46,40 +46,31 @@ Dark cinematic cinema discovery. Think a private screening room meets an editori
 
 ---
 
-## Design v2: "Oriel Whisper"
+## Design v2: "Oriel Whisper" (v2 — unlumen-inspired)
 
 Branch: `oriel/design-quiet-luxury`
 
 ### Concept
-Whisper-quiet cinema. Generous negative space, near-black with warm coffee undertones, gold reduced to a few sacred touches. Text-driven hierarchy. The interface steps out of the way so the films speak. Like leafing through a private art-house screening catalog.
+Direct descendants of unlumen UI's design language — `Orbital Image Wheel` (scroll-driven half-circle of cards with blur+dim focus), `Hover Expand` (skipper-ui style row expansion), and `Hover Feature Cards` motion. Motion is heavy, but every effect serves focus. The interface feels like a curated editorial site, not a Netflix clone.
 
-### Key Visual Motifs
-- Warm-tinted near-black (#0a0807) — not cold
-- Gold (#d4af37) used only on: rating stars, brand mark, focused frame
-- No bright lights, no glows, no scanlines, no neon
-- Editorial typography: large serif-feel headings, monospace metadata
-- Generous letter-spacing (0.05em–0.4em)
-- Card stack carousel: 3D flip on click, slow spring physics, no auto-play
+### Updated Visual Motifs
+- Dark base (#050507) with deep radial gradient
+- Active focus card = bright + saturated; out-of-focus = blurred, dimmed, desaturated
+- Spring physics for all state transitions
+- Scroll-driven + click-driven carousel (GSAP-powered)
+- No decorative borders; depth comes from blur/contrast
 
-### Aesthetic
-- Background: #0a0807 (warm near-black) with subtle vignette
-- Text primary: #f5f1ea (warm ivory, not pure white)
-- Text secondary: rgba(245,241,234,0.6)
-- Accent: #d4af37 (gold, used sparingly)
-- No glow, no neon, no saturation pops
-- Whitespace is the design
+### Updated Components
+- OrbitalWheel — scroll-driven half-circle of cards, blur/dim/sat falloff, active card caption
+- HoverExpandList — skipper-ui style vertical rows that expand to show full image, spring physics
+- WhisperHero — minimal, no HUD chrome, slow text reveal, single quiet CTA
+- WhisperCard / WhisperRow — minimal cards, edge fades
+- WhisperContinueWatching — quieter version
+- WhisperBrowseClient — orchestrates all
 
-### Motion Language
-- Slower durations (1s+ for entrance)
-- Soft spring physics (lower stiffness)
-- No auto-play, no bouncing
-- Subtle parallax on hero only
+### Inspiration sources
+- **unlumen UI** (ui.unlumen.com) — OrbitalWheel, HoverExpand patterns
+- **skipper-ui** (referenced by unlumen) — horizontal accordion pattern, applied vertically
+- **unlumen UI** — Hover Feature Cards slide-in panel pattern
 
-### Components To Build
-- CursorRing (muted) — small dot only, no ring, no scale on hover
-- BrowseHero — minimal, no HUD chrome, slow text reveal, single quiet CTA
-- MovieCard — text-led, no decorative elements, restrained hover
-- MovieRow — large numbered index, editorial spacing
-- CardStack — THE centerpiece carousel: stacked cards, flip on click
-- ContinueWatching — quieter version
-- BrowseClient — calm entrance, no shimmer, no aggressive animation
+---
