@@ -3,71 +3,10 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import MovieRow from "@/components/movies/MovieRow";
-import type { Movie } from "@/components/movies/MovieCard";
-
-function mapResults(results: unknown[], type: "movie" | "tv"): Movie[] {
-  return results.map((m) => {
-    const r = m as Record<string, unknown>;
-    return {
-      id: Number(r.id),
-      title: (r.title ?? r.name) as string,
-      genre: type === "movie" ? "Movie" : "Series",
-      year: ((r.release_date ?? r.first_air_date) as string | undefined)?.slice(0, 4) ?? "",
-      image: `https://image.tmdb.org/t/p/w780${(r.backdrop_path ?? r.poster_path) as string}`,
-      contentType: type === "tv" ? "series" : "movie",
-    };
-  });
-}
-
-function HomeCatalogue({ type }: { type: "movie" | "tv" }) {
-  const [trending, setTrending] = useState<Movie[]>([]);
-  const [popular, setPopular] = useState<Movie[]>([]);
-  const [topRated, setTopRated] = useState<Movie[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const [trendRes, popRes, topRes] = await Promise.all([
-          fetch(`/api/tmdb/trending?type=${type}`, { cache: "no-store" }),
-          fetch(`/api/tmdb/popular?type=${type}`, { cache: "no-store" }),
-          fetch(`/api/tmdb/top-rated?type=${type}`, { cache: "no-store" }),
-        ]);
-        if (!trendRes.ok || !popRes.ok || !topRes.ok) return;
-        const [trendData, popData, topData] = await Promise.all([
-          trendRes.json(), popRes.json(), topRes.json(),
-        ]);
-        if (cancelled) return;
-        setTrending(mapResults(trendData.results || [], type));
-        setPopular(mapResults(popData.results || [], type));
-        setTopRated(mapResults(topData.results || [], type));
-        setLoaded(true);
-      } catch { /* silence */ }
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [type]);
-
-  if (!loaded) return null;
-
-  return (
-    <div className="mx-auto max-w-7xl px-6 py-12 space-y-14">
-      <h2 className="text-xl font-extralight tracking-[0.2em] uppercase text-white/50">
-        Catalogue
-      </h2>
-      <MovieRow title={type === "movie" ? "Trending Movies" : "Trending Series"} movies={trending} />
-      <MovieRow title={type === "movie" ? "Popular Movies" : "Popular Series"} movies={popular} />
-      <MovieRow title={type === "movie" ? "Award Winning Movies" : "Award Winning Series"} movies={topRated} />
-    </div>
-  );
-}
 
 export default function Home() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center overflow-hidden bg-[#08090d] text-white">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#08090d] text-white">
 
       {/* Ambient background */}
       <div className="absolute inset-0">
@@ -116,8 +55,6 @@ export default function Home() {
         </Link>
       </motion.section>
 
-      {/* Catalogue */}
-      <HomeCatalogue type="movie" />
     </main>
   );
 }
