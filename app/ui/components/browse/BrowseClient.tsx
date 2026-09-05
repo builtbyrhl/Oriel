@@ -14,6 +14,8 @@ export default function BrowseClient() {
 
   const [featured, setFeatured] = useState<Movie | null>(null);
   const [trending, setTrending] = useState<Movie[]>([]);
+  const [popular, setPopular] = useState<Movie[]>([]);
+  const [topRated, setTopRated] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,37 +23,45 @@ export default function BrowseClient() {
       try {
         setLoading(true);
 
-        const res = await fetch(
-          `/api/tmdb/trending?type=${type}`,
-          {
-            cache: "no-store",
-          }
-        );
+        const [trendRes, popRes, topRes] = await Promise.all([
+          fetch(`/api/tmdb/trending?type=${type}`, { cache: "no-store" }),
+          fetch(`/api/tmdb/popular?type=${type}`, { cache: "no-store" }),
+          fetch(`/api/tmdb/top-rated?type=${type}`, { cache: "no-store" }),
+        ]);
 
-        if (!res.ok) {
-          throw new Error(`Trending request failed: ${res.status}`);
+        if (!trendRes.ok || !popRes.ok || !topRes.ok) {
+          throw new Error("One or more TMDB requests failed");
         }
 
-        const data = await res.json();
+        const [trendData, popData, topData] = await Promise.all([
+          trendRes.json(),
+          popRes.json(),
+          topRes.json(),
+        ]);
 
-        const movies: Movie[] = (data.results || []).map((m: any) => ({
-          id: m.id,
-          title: m.title || m.name,
-          genre: type === "movie" ? "Movie" : "Series",
-          year: (m.release_date || m.first_air_date || "").slice(0, 4),
-          image: `https://image.tmdb.org/t/p/w780${
-            m.backdrop_path || m.poster_path
-          }`,
-          contentType:
-            type === "tv" ? "series" : "movie",
-        }));
+        const map = (results: unknown[]): Movie[] =>
+          results.map((m) => {
+            const r = m as Record<string, unknown>;
+            return {
+              id: Number(r.id),
+              title: (r.title ?? r.name) as string,
+              genre: type === "movie" ? "Movie" : "Series",
+              year: ((r.release_date ?? r.first_air_date) as string | undefined)?.slice(0, 4) ?? "",
+              image: `https://image.tmdb.org/t/p/w780${(r.backdrop_path ?? r.poster_path) as string}`,
+              contentType: type === "tv" ? "series" : "movie",
+            };
+          });
 
-        setFeatured(movies[0] || null);
-        setTrending(movies);
+        setFeatured(map(trendData.results || [])[0] || null);
+        setTrending(map(trendData.results || []));
+        setPopular(map(popData.results || []));
+        setTopRated(map(topData.results || []));
       } catch (err) {
         console.error(err);
         setFeatured(null);
         setTrending([]);
+        setPopular([]);
+        setTopRated([]);
       } finally {
         setLoading(false);
       }
@@ -92,7 +102,7 @@ export default function BrowseClient() {
 
         <MovieRow
           title={type === "movie" ? "Popular Movies" : "Popular Series"}
-          movies={trending}
+          movies={popular}
         />
 
         <MovieRow
@@ -101,7 +111,7 @@ export default function BrowseClient() {
               ? "Award Winning Movies"
               : "Award Winning Series"
           }
-          movies={trending}
+          movies={topRated}
         />
       </div>
     </main>
