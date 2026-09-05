@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Oriel Player</title>
+</head>
+<body>
+  <div id="loader">
+    <div class="spinner"></div>
+    <div id="loader-text">Loading stream...</div>
+  </div>
+
+  <div id="usage">
+    <p>
+      <span style="color:#fff;font-size:1.2rem">Oriel Player</span><br /><br />
+      <code>?id=550</code> &nbsp;— movie<br />
+      <code>?id=456&amp;s=1&amp;e=1</code> &nbsp;— TV episode
+    </p>
+  </div>
+
+  <div id="err">
+    <div id="err-title">Error Occurred</div>
+    <div id="err-detail"></div>
+  </div>
+
+  <div id="player">
+    <video id="v" controls autoplay playsinline></video>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

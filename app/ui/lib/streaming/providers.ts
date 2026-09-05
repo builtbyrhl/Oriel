@@ -14,9 +14,24 @@ import type { StreamingProvider } from "./types";
 
 export const STREAM_PROVIDERS: StreamingProvider[] = [
   {
+    // Self-hosted proxy (oriel-player/) that returns raw MP4 streams with no
+    // ads/trackers. Deploy oriel-player/ to Vercel, then set
+    // NEXT_PUBLIC_ORIEL_PLAYER_URL to the deployed origin (no trailing slash).
+    name: "vidlink-selfhosted",
+    label: "Vidlink (self-hosted)",
+    rank: 1,
+    movieUrlTemplate:
+      (process.env.NEXT_PUBLIC_ORIEL_PLAYER_URL || "") + "/?id={{tmdbId}}",
+    seriesUrlTemplate:
+      (process.env.NEXT_PUBLIC_ORIEL_PLAYER_URL || "") +
+      "/?id={{tmdbId}}&s={{season}}&e={{episode}}",
+    description:
+      "Self-hosted Vidlink proxy — ad-free, no trackers, MP4 streams.",
+  },
+  {
     name: "vidlink",
     label: "Vidlink",
-    rank: 1,
+    rank: 2,
     // Open-source + self-hostable; the most durable option since the domain(s)
     // are community run rather than a single fly-by-night host.
     movieUrlTemplate: "https://vidlink.pro/movie/{{tmdbId}}",
@@ -74,9 +89,14 @@ export const DEFAULT_ENABLED = true;
 
 /** Ranked, live providers only. */
 export function getRankedProviders(): StreamingProvider[] {
-  return STREAM_PROVIDERS.filter(
-    (p) => p.enabled ?? DEFAULT_ENABLED
-  ).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  return STREAM_PROVIDERS.filter((p) => {
+    if (!(p.enabled ?? DEFAULT_ENABLED)) return false;
+    // Skip self-hosted provider if env var is not configured
+    if (p.name === "vidlink-selfhosted") {
+      return Boolean(process.env.NEXT_PUBLIC_ORIEL_PLAYER_URL);
+    }
+    return true;
+  }).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
 }
 
 /** True when a provider can serve `kind` content (movie/series). */

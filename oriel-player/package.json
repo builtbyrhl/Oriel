@@ -1,0 +1,22 @@
+{
+  "name": "oriel-player",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted Vidlink proxy — ad-free MP4 streams for the Oriel UI",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "libsodium-wrappers": "^0.7.13"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
