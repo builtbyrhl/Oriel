@@ -36,20 +36,20 @@ function GlassNavbarInner({ variant = "default" }: GlassNavbarProps) {
       <header className="fixed inset-x-0 top-4 z-50 flex justify-center px-3 md:px-6">
 
         <nav className={`w-full max-w-7xl rounded-2xl transition-all duration-300 shadow-[0_10px_40px_rgba(0,0,0,0.45)] ${
-  variant === "hero-bright"
-    ? "border-white/18 bg-black/22 backdrop-blur-[26px]"
-    : variant === "hero-dark"
-    ? "border-white/10 bg-white/8 backdrop-blur-3xl"
-    : variant === "immersive"
-    ? "border-transparent bg-transparent backdrop-blur-none shadow-none"
-    : "border-white/10 bg-white/8 backdrop-blur-3xl"
-}` }>
+          variant === "hero-bright"
+            ? "border-white/18 bg-black/22 backdrop-blur-[26px]"
+            : variant === "hero-dark"
+            ? "border-white/10 bg-white/8 backdrop-blur-3xl"
+            : variant === "immersive"
+            ? "border-transparent bg-transparent backdrop-blur-none shadow-none"
+            : "border-[#f5f1ea]/[0.08] bg-[#0a0807]/[0.7] backdrop-blur-2xl"
+        }` }>
 
           <div className="flex h-14 md:h-16 items-center justify-between px-4 md:px-6">
 
             <Link
               href="/browse"
-              className="text-lg md:text-xl font-light tracking-[0.45em]"
+              className="text-lg md:text-xl font-light tracking-[0.45em] text-[#f5f1ea]"
             >
               ORIEL
             </Link>
@@ -73,14 +73,14 @@ function GlassNavbarInner({ variant = "default" }: GlassNavbarProps) {
                     href={item.href}
                     className={`relative transition ${
                       active
-                        ? "text-white"
-                        : "text-white/60 hover:text-white"
+                        ? "text-[#f5f1ea]"
+                        : "text-[#f5f1ea]/55 hover:text-[#f5f1ea]"
                     }`}
                   >
                     {item.label}
 
                     {active && (
-                      <span className="absolute -bottom-2 left-0 h-[2px] w-full rounded-full bg-white" />
+                      <span className="absolute -bottom-2 left-0 h-[1px] w-full rounded-full bg-[#d4af37]/50" />
                     )}
 
                   </Link>
