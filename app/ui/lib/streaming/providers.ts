@@ -69,9 +69,17 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
     description: "VidSrc.pm mirror.",
   },
   {
+    name: "vidsrcbz",
+    label: "VidSrc.bz",
+    rank: 7,
+    movieUrlTemplate: "https://vidsrc.bz/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.bz/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc.bz mirror.",
+  },
+  {
     name: "vidlink",
     label: "Vidlink",
-    rank: 7,
+    rank: 8,
     movieUrlTemplate: "https://vidlink.pro/movie/{{tmdbId}}",
     seriesUrlTemplate: "https://vidlink.pro/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "Open-source, multi-mirror embed.",
@@ -79,7 +87,7 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
   {
     name: "twoembed",
     label: "2Embed.cc",
-    rank: 8,
+    rank: 9,
     movieUrlTemplate: "https://www.2embed.cc/embed/{{tmdbId}}",
     seriesUrlTemplate: "https://www.2embed.cc/embedtv/{{tmdbId}}&s={{season}}&e={{episode}}",
     description: "2Embed.cc embed.",
@@ -87,7 +95,7 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
   {
     name: "smashystream",
     label: "SmashyStream",
-    rank: 9,
+    rank: 10,
     movieUrlTemplate: "https://embed.smashystream.com/playere.php?tmdb={{tmdbId}}",
     seriesUrlTemplate: "https://embed.smashystream.com/playere.php?tmdb={{tmdbId}}&season={{season}}&episode={{episode}}",
     description: "SmashyStream embed.",
