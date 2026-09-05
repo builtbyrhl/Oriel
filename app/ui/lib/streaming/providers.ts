@@ -26,61 +26,62 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
       (process.env.NEXT_PUBLIC_ORIEL_PLAYER_URL || "") +
       "/?id={{tmdbId}}&s={{season}}&e={{episode}}",
     description:
-      "Self-hosted Vidlink proxy — ad-free, no trackers, MP4 streams.",
+      "Self-hosted proxy — ad-free, no trackers, direct MP4 streams.",
+  },
+  {
+    name: "vidsrcme",
+    label: "VidSrc.me",
+    rank: 2,
+    movieUrlTemplate: "https://vidsrc.me/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.me/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "Fast VidSrc mirror.",
+  },
+  {
+    name: "vidsrcio",
+    label: "VidSrc.io",
+    rank: 3,
+    movieUrlTemplate: "https://vidsrc.io/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.io/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc.io mirror.",
+  },
+  {
+    name: "vidsrcv2",
+    label: "VidSrc.v2",
+    rank: 4,
+    movieUrlTemplate: "https://v2.vidsrc.me/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://v2.vidsrc.me/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc v2 mirror.",
+  },
+  {
+    name: "vidsrcsbs",
+    label: "VidSrc.sbs",
+    rank: 5,
+    movieUrlTemplate: "https://vidsrc.sbs/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.sbs/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc.sbs embed.",
   },
   {
     name: "vidlink",
     label: "Vidlink",
-    rank: 2,
-    // Open-source + self-hostable; the most durable option since the domain(s)
-    // are community run rather than a single fly-by-night host.
+    rank: 6,
     movieUrlTemplate: "https://vidlink.pro/movie/{{tmdbId}}",
     seriesUrlTemplate: "https://vidlink.pro/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "Open-source, multi-mirror embed.",
   },
   {
-    name: "vidsrcxyz",
-    label: "VidSrc.xyz",
-    rank: 2,
-    movieUrlTemplate: "https://vidsrc.xyz/embed/movie?tmdb={{tmdbId}}",
-    seriesUrlTemplate:
-      "https://vidsrc.xyz/embed/tv?tmdb={{tmdbId}}&season={{season}}&episode={{episode}",
-    description: "VidSrc.xyz embed.",
-  },
-  {
-    name: "vidsrccc",
-    label: "VidSrc.cc",
-    rank: 3,
-    movieUrlTemplate: "https://vidsrc.cc/v2/embed/movie/{{tmdbId}}",
-    seriesUrlTemplate:
-      "https://vidsrc.cc/v2/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
-    description: "VidSrc.cc embed.",
-  },
-  {
-    name: "vidsrcsbs",
-    label: "VidSrc.sbs",
-    rank: 4,
-    movieUrlTemplate: "https://vidsrc.sbs/embed/movie/{{tmdbId}}",
-    seriesUrlTemplate:
-      "https://vidsrc.sbs/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
-    description: "VidSrc.sbs embed.",
-  },
-  {
     name: "twoembed",
     label: "2Embed.cc",
-    rank: 5,
+    rank: 7,
     movieUrlTemplate: "https://www.2embed.cc/embed/{{tmdbId}}",
-    seriesUrlTemplate:
-      "https://www.2embed.cc/embedtv/{{tmdbId}}&s={{season}}&e={{episode}",
+    seriesUrlTemplate: "https://www.2embed.cc/embedtv/{{tmdbId}}&s={{season}}&e={{episode}}",
     description: "2Embed.cc embed.",
   },
   {
     name: "smashystream",
     label: "SmashyStream",
-    rank: 6,
+    rank: 8,
     movieUrlTemplate: "https://embed.smashystream.com/playere.php?tmdb={{tmdbId}}",
-    seriesUrlTemplate:
-      "https://embed.smashystream.com/playere.php?tmdb={{tmdbId}}&season={{season}}&episode={{episode}",
+    seriesUrlTemplate: "https://embed.smashystream.com/playere.php?tmdb={{tmdbId}}&season={{season}}&episode={{episode}}",
     description: "SmashyStream embed.",
   },
 ];
