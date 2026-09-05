@@ -7,6 +7,7 @@ import GlassNavbar from "@/components/layout/GlassNavbar";
 import BrowseHero from "@/components/browse/BrowseHero";
 import MovieRow from "@/components/browse/MovieRow";
 import ContinueWatchingRow from "@/components/continue-watching/ContinueWatchingRow";
+import SpinToExploreSection from "@/components/browse/SpinToExploreSection";
 import ShimmerCard from "@/components/ui/ShimmerCard";
 import AmbientBackdrop from "@/components/ui/AmbientBackdrop";
 import type { Movie } from "@/components/movies/MovieCard";
@@ -14,12 +15,12 @@ import type { Movie } from "@/components/movies/MovieCard";
 const EASE = [0.23, 1, 0.32, 1] as const;
 
 const ROWS = [
-  { key: "trending", title: "Trending Now", index: "01", count: "This Week" },
-  { key: "popular", title: "Popular", index: "02", count: "All Time" },
+  { key: "trending", title: "Trending Now", index: "04", count: "This Week" },
+  { key: "popular", title: "Popular", index: "05", count: "All Time" },
   {
     key: "topRated",
     title: "Critically Acclaimed",
-    index: "03",
+    index: "06",
     count: "Top Rated",
   },
 ] as const;
@@ -148,6 +149,15 @@ export default function BrowseClient() {
                 }}
               >
                 <ContinueWatchingRow />
+              </motion.div>
+
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 30 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } },
+                }}
+              >
+                <SpinToExploreSection type={type} />
               </motion.div>
 
               {ROWS.map((row) => (
