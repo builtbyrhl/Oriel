@@ -30,6 +30,13 @@ export interface StreamSource {
   provider: string;
   label: string;
   url: string;
+  /**
+   * "iframe" → embed page (player + ads/trackers), used as-is.
+   * "mp4"    → direct video file, can be played with native <video> and our
+   *            custom branded controls.
+   * Defaults to "iframe" when omitted for back-compat.
+   */
+  kind?: "iframe" | "mp4";
 }
 
 export interface StreamResult {
