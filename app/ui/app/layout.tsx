@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import WhisperCursor from "@/components/ui/WhisperCursor";
 import WhisperScroll from "@/components/ui/WhisperScroll";
+import WhisperGuard from "@/components/ui/WhisperGuard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,6 +33,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-[#050507]">
         <WhisperCursor />
         <WhisperScroll />
+        <WhisperGuard />
         {children}
       </body>
     </html>
