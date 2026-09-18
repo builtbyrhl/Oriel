@@ -58,3 +58,50 @@ body {
     transform: scale(1);
   }
 }
+
+/* --- Oriel design utilities (design-rhythm) --- */
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes orielFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes orielWave {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.oriel-wave-track {
+  animation: orielWave 90s linear infinite;
+  will-change: transform;
+}
+
+.oriel-wave-hover:hover .oriel-wave-track,
+.oriel-wave-track:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oriel-wave-track {
+    animation-play-state: paused;
+  }
+}

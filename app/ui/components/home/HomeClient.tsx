@@ -5,10 +5,10 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, Play } from "lucide-react";
 import GlassNavbar from "@/components/layout/GlassNavbar";
-import OrbitalWheelSection from "@/components/browse/OrbitalWheelSection";
-import HoverExpandList from "@/components/browse/HoverExpandList";
-import WhisperRow from "@/components/browse/WhisperRow";
-import WhisperCard from "@/components/browse/WhisperCard";
+import ContinueWatchingSection from "@/components/home/ContinueWatchingSection";
+import SpinCarouselSection from "@/components/home/SpinCarouselSection";
+import RhythmField from "@/components/home/RhythmField";
+import TrendingWave, { type WaveMovie } from "@/components/home/TrendingWave";
 
 type Movie = {
   id: number;
@@ -16,6 +16,7 @@ type Movie = {
   genre: string;
   year: string;
   image: string;
+  poster: string;
   contentType: "movie" | "series";
 };
 
@@ -23,10 +24,6 @@ const EASE = [0.23, 1, 0.32, 1] as const;
 
 export default function HomeClient() {
   const [featured, setFeatured] = useState<Movie | null>(null);
-  const [expandItems, setExpandItems] = useState<{
-    id: number; title: string; subtitle: string; image: string;
-    rating: number; year: string; description: string; contentType: "movie" | "series";
-  }[]>([]);
   const [rows, setRows] = useState<Record<string, Movie[]>>({});
   const [loading, setLoading] = useState(true);
 
@@ -54,6 +51,7 @@ export default function HomeClient() {
             genre: "Film",
             year: ((r.release_date ?? r.first_air_date) as string | undefined)?.slice(0, 4) ?? "",
             image: `https://image.tmdb.org/t/p/w780${(r.backdrop_path ?? r.poster_path) as string}`,
+            poster: `https://image.tmdb.org/t/p/w500${(r.poster_path ?? r.backdrop_path) as string}`,
             contentType: "movie" as const,
           }));
 
@@ -63,12 +61,6 @@ export default function HomeClient() {
 
         setFeatured(trend[0] || null);
         setRows({ trending: trend, popular, topRated: top });
-        setExpandItems(trend.slice(0, 6).map((m) => ({
-          ...m,
-          subtitle: m.genre,
-          description: "A hand-picked selection from this week's most compelling cinema.",
-          rating: 8.0,
-        })));
       } catch (err) {
         console.error(err);
       } finally {
@@ -79,6 +71,26 @@ export default function HomeClient() {
     load();
     return () => { cancelled = true; };
   }, []);
+
+  // Deduplicated, poster-ready mix for the rhythm room.
+  const rhythmMovies: WaveMovie[] = (() => {
+    const seen = new Set<number>();
+    const acc: WaveMovie[] = [];
+    for (const m of [rows.trending, rows.popular, rows.topRated].flat()) {
+      if (!m || seen.has(m.id)) continue;
+      seen.add(m.id);
+      if (!m.poster.includes("/")) continue;
+      acc.push({
+        id: m.id,
+        title: m.title,
+        poster: m.poster,
+        year: m.year,
+        contentType: m.contentType,
+      });
+      if (acc.length >= 10) break;
+    }
+    return acc;
+  })();
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050507] text-white">
@@ -116,10 +128,10 @@ export default function HomeClient() {
         <div className="mx-auto max-w-7xl px-6 py-20 md:px-12 md:py-28">
           {loading ? (
             <div className="space-y-20">
-              <div className="h-[60vh]" />
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-20 animate-pulse rounded-2xl bg-white/[0.02]" />
+              <div className="h-[50vh]" />
+              <div className="flex gap-5">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="aspect-video w-[300px] animate-pulse rounded-[20px] bg-white/[0.03]" />
                 ))}
               </div>
             </div>
@@ -129,75 +141,37 @@ export default function HomeClient() {
               animate="visible"
               variants={{
                 hidden: { opacity: 0 },
-                visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
+                visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
               }}
-              className="space-y-24"
+              className="space-y-32 md:space-y-44"
             >
-              {/* Orbital Wheel */}
-              <motion.div
-                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
-              >
-                <OrbitalWheelSection type="movie" />
+              {/* 01 — glass continue watching */}
+              <motion.div variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.8, ease: EASE } } }}>
+                <ContinueWatchingSection />
               </motion.div>
 
-              {/* Hover Expand — Featured */}
-              <motion.div
-                variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8 } } }}
-              >
-                <HoverExpandList
-                  title="Featured"
-                  index="01"
-                  items={expandItems}
-                />
+              {/* 02 — the reel */}
+              <motion.div variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.8, ease: EASE } } }}>
+                <SpinCarouselSection type="movie" />
               </motion.div>
 
-              {/* Trending Row */}
-              <motion.div
-                variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8 } } }}
-              >
-                <FeaturedRow
-                  title="Trending"
-                  index="02"
-                  count="This week"
-                  movies={rows.trending || []}
-                />
+              {/* 03 — the rhythm room */}
+              <motion.div variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.9, ease: EASE } } }}>
+                {rhythmMovies.length >= 6 && <RhythmField movies={rhythmMovies} />}
               </motion.div>
 
-              {/* Hover Expand — Top Rated */}
-              <motion.div
-                variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8 } } }}
-              >
-                <HoverExpandList
-                  title="Critically Acclaimed"
-                  index="03"
-                  items={(rows.topRated || []).slice(0, 5).map((m) => ({
-                    ...m,
-                    subtitle: m.genre,
-                    description: "Award-winning cinema. The best of the best.",
-                    rating: 8.5,
-                  }))}
-                />
-              </motion.div>
-
-              {/* Popular Row */}
-              <motion.div
-                variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8 } } }}
-              >
-                <FeaturedRow
-                  title="Popular"
-                  index="04"
-                  count="All time"
-                  movies={rows.popular || []}
-                />
+              {/* 04 — the tide */}
+              <motion.div variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.9, ease: EASE } } }}>
+                <TrendingWave movies={rows.trending || []} />
               </motion.div>
 
               {/* Footer */}
               <motion.div
                 variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 1 } } }}
-                className="pt-16 text-center"
+                className="pt-8 text-center"
               >
                 <span className="font-mono text-[9px] uppercase tracking-[0.6em] text-white/12">
-                  End of catalogue · {new Date().getFullYear()}
+                  End of tide · {new Date().getFullYear()}
                 </span>
               </motion.div>
             </motion.div>
@@ -325,64 +299,6 @@ function HomeHero({ movie }: { movie: Movie }) {
 
       {/* Bottom fade */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-[#050507]" />
-    </section>
-  );
-}
-
-function FeaturedRow({
-  title,
-  index,
-  count,
-  movies,
-}: {
-  title: string;
-  index: string;
-  count: string;
-  movies: Movie[];
-}) {
-  return (
-    <section>
-      <div className="mb-8 flex items-end justify-between">
-        <div className="flex items-baseline gap-4">
-          <span className="font-mono text-[10px] tabular-nums uppercase tracking-[0.3em] text-white/30">
-            {index}
-          </span>
-          <div>
-            <h2 className="text-2xl font-light tracking-wide text-white md:text-3xl">
-              {title}
-            </h2>
-            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.3em] text-white/30">
-              {count}
-            </p>
-          </div>
-        </div>
-        <Link
-          href="/browse"
-          className="group hidden items-center gap-2 font-mono text-[10px] uppercase tracking-[0.3em] text-white/40 transition-colors duration-300 hover:text-white md:flex"
-        >
-          View all
-          <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-1" />
-        </Link>
-      </div>
-
-      <div className="relative">
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-[#050507] to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-[#050507] to-transparent" />
-
-        <div className="-mx-6 flex gap-4 overflow-x-auto px-6 pb-4 snap-x snap-mandatory scrollbar-hide md:gap-5">
-          {movies.slice(0, 8).map((movie, i) => (
-            <WhisperCard
-              key={movie.id}
-              id={movie.id}
-              title={movie.title}
-              genre={movie.genre}
-              year={movie.year}
-              image={movie.image}
-              contentType={movie.contentType}
-            />
-          ))}
-        </div>
-      </div>
     </section>
   );
 }
