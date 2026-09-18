@@ -12,14 +12,42 @@
 
 import type { StreamingProvider } from "./types";
 
+export function getRankedProviders(): StreamingProvider[] {
+  return STREAM_PROVIDERS.filter((p) => p.enabled !== false).sort((a, b) => a.rank - b.rank);
+}
+
+export function providerHas(type: "movie" | "tv", p: StreamingProvider): boolean {
+  return type === "movie" ? Boolean(p.movieUrlTemplate) : Boolean(p.seriesUrlTemplate);
+}
+
+export function buildProviderUrl(
+  p: StreamingProvider,
+  tmdbId: number,
+  type: "movie" | "tv",
+  season?: number,
+  episode?: number,
+): string {
+  const template = type === "movie" ? p.movieUrlTemplate : p.seriesUrlTemplate;
+  if (!template) return "";
+  return template
+    .replace(/{{tmdbId}}/g, String(tmdbId))
+    .replace(/{{season}}/g, String(season))
+    .replace(/{{episode}}/g, String(episode));
+}
+
 export const STREAM_PROVIDERS: StreamingProvider[] = [
   {
-    // Self-hosted proxy (oriel-player/) that returns raw MP4 streams with no
-    // ads/trackers. Deploy oriel-player/ to Vercel, then set
-    // NEXT_PUBLIC_ORIEL_PLAYER_URL to the deployed origin (no trailing slash).
+    name: "vidlink",
+    label: "Vidlink",
+    rank: 1,
+    movieUrlTemplate: "https://vidlink.pro/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidlink.pro/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "Open-source, multi-mirror embed.",
+  },
+  {
     name: "vidlink-selfhosted",
     label: "Vidlink (self-hosted)",
-    rank: 1,
+    rank: 2,
     movieUrlTemplate:
       (process.env.NEXT_PUBLIC_ORIEL_PLAYER_URL || "") + "/?id={{tmdbId}}",
     seriesUrlTemplate:
@@ -31,7 +59,7 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
   {
     name: "vidsrcio",
     label: "VidSrc.io",
-    rank: 2,
+    rank: 3,
     movieUrlTemplate: "https://vidsrc.io/embed/movie/{{tmdbId}}",
     seriesUrlTemplate: "https://vidsrc.io/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "VidSrc.io mirror.",
@@ -39,7 +67,7 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
   {
     name: "vidsrcv2",
     label: "VidSrc.v2",
-    rank: 3,
+    rank: 4,
     movieUrlTemplate: "https://v2.vidsrc.me/embed/movie/{{tmdbId}}",
     seriesUrlTemplate: "https://v2.vidsrc.me/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "VidSrc v2 mirror.",
@@ -47,7 +75,7 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
   {
     name: "vidsrcsbs",
     label: "VidSrc.sbs",
-    rank: 4,
+    rank: 5,
     movieUrlTemplate: "https://vidsrc.sbs/embed/movie/{{tmdbId}}",
     seriesUrlTemplate: "https://vidsrc.sbs/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "VidSrc.sbs mirror.",
@@ -55,7 +83,7 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
   {
     name: "vidsrcpm",
     label: "VidSrc.pm",
-    rank: 5,
+    rank: 6,
     movieUrlTemplate: "https://vidsrc.pm/embed/movie/{{tmdbId}}",
     seriesUrlTemplate: "https://vidsrc.pm/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "VidSrc.pm mirror.",
@@ -63,18 +91,10 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
   {
     name: "vidsrcbz",
     label: "VidSrc.bz",
-    rank: 6,
+    rank: 7,
     movieUrlTemplate: "https://vidsrc.bz/embed/movie/{{tmdbId}}",
     seriesUrlTemplate: "https://vidsrc.bz/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "VidSrc.bz mirror.",
-  },
-  {
-    name: "vidlink",
-    label: "Vidlink",
-    rank: 7,
-    movieUrlTemplate: "https://vidlink.pro/movie/{{tmdbId}}",
-    seriesUrlTemplate: "https://vidlink.pro/tv/{{tmdbId}}/{{season}}/{{episode}}",
-    description: "Open-source, multi-mirror embed.",
   },
   {
     name: "twoembed",
