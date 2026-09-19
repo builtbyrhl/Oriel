@@ -26,8 +26,8 @@ describe("streaming provider registry", () => {
     assert.equal(ranked[0].rank, 1);
   });
 
-  it("has no provider resolving to an empty movie or TV URL", () => {
-    for (const p of STREAM_PROVIDERS) {
+  it("has no served provider resolving to an empty movie or TV URL", () => {
+    for (const p of getRankedProviders()) {
       assert.ok(buildProviderUrl(p, 1, "movie"), `empty movie URL for ${p.name}`);
       assert.ok(buildProviderUrl(p, 1, "tv", 1, 1), `empty TV URL for ${p.name}`);
     }

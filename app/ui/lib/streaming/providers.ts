@@ -12,8 +12,31 @@
 
 import type { StreamingProvider } from "./types";
 
+const ORIEL_PLAYER_ORIGIN = process.env.NEXT_PUBLIC_ORIEL_PLAYER_URL ?? "";
+const SELFHOSTED_NAME = "vidlink-selfhosted";
+
+/**
+ * Ranked, ready-to-serve sources. The self-hosted proxy is only included while
+ * its origin is configured — without it it would 404, and we never hand a
+ * broken source to the player. When it IS configured it is promoted above
+ * every iframe embed (raw MP4, zero ads, nothing detectable) and becomes the
+ * default. Returned ranks are always dense 1..N in serve order, so
+ * "first = most reliable" holds in both states.
+ */
 export function getRankedProviders(): StreamingProvider[] {
-  return STREAM_PROVIDERS.filter((p) => p.enabled !== false).sort((a, b) => a.rank - b.rank);
+  const selfhostedLive = ORIEL_PLAYER_ORIGIN.trim().length > 0;
+  const ordered = STREAM_PROVIDERS.filter((p) => {
+    if (p.enabled === false) return false;
+    if (p.name === SELFHOSTED_NAME) return selfhostedLive;
+    return Boolean(p.movieUrlTemplate || p.seriesUrlTemplate);
+  }).sort((a, b) => {
+    if (selfhostedLive) {
+      if (a.name === SELFHOSTED_NAME) return -1;
+      if (b.name === SELFHOSTED_NAME) return 1;
+    }
+    return a.rank - b.rank;
+  });
+  return ordered.map((p, i) => ({ ...p, rank: i + 1 }));
 }
 
 export function providerHas(type: "movie" | "tv", p: StreamingProvider): boolean {
@@ -35,7 +58,29 @@ export function buildProviderUrl(
     .replace(/{{episode}}/g, String(episode));
 }
 
+const selfhostedMovieTemplate = (origin: string) =>
+  origin ? `${origin}/?id={{tmdbId}}` : "";
+const selfhostedSeriesTemplate = (origin: string) =>
+  origin
+    ? `${origin}/?id={{tmdbId}}&s={{season}}&e={{episode}}`
+    : "";
+
 export const STREAM_PROVIDERS: StreamingProvider[] = [
+  {
+    // Self-hosted proxy (oriel-player/) — plays the raw MP4 in a native
+    // <video> tag. Ours, same origin, never sandboxed: zero ads, zero
+    // trackers, nothing detectable. Lives at the bottom of the stored list;
+    // `getRankedProviders` lifts it to the top only while
+    // NEXT_PUBLIC_ORIEL_PLAYER_URL points at a deployed proxy, and otherwise
+    // omits it so it never surfaces as a dead source.
+    name: SELFHOSTED_NAME,
+    label: "Vidlink (self-hosted)",
+    rank: 100,
+    movieUrlTemplate: selfhostedMovieTemplate(ORIEL_PLAYER_ORIGIN),
+    seriesUrlTemplate: selfhostedSeriesTemplate(ORIEL_PLAYER_ORIGIN),
+    description:
+      "Self-hosted proxy — ad-free, no trackers, direct MP4 streams.",
+  },
   {
     name: "vidlink",
     label: "Vidlink",
@@ -43,18 +88,6 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
     movieUrlTemplate: "https://vidlink.pro/movie/{{tmdbId}}",
     seriesUrlTemplate: "https://vidlink.pro/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "Open-source, multi-mirror embed.",
-  },
-  {
-    name: "vidlink-selfhosted",
-    label: "Vidlink (self-hosted)",
-    rank: 2,
-    movieUrlTemplate:
-      (process.env.NEXT_PUBLIC_ORIEL_PLAYER_URL || "") + "/?id={{tmdbId}}",
-    seriesUrlTemplate:
-      (process.env.NEXT_PUBLIC_ORIEL_PLAYER_URL || "") +
-      "/?id={{tmdbId}}&s={{season}}&e={{episode}}",
-    description:
-      "Self-hosted proxy — ad-free, no trackers, direct MP4 streams.",
   },
   {
     name: "vidsrcio",
