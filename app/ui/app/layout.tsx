@@ -4,7 +4,6 @@ import "./globals.css";
 import WhisperCursor from "@/components/ui/WhisperCursor";
 import WhisperScroll from "@/components/ui/WhisperScroll";
 import WhisperGuard from "@/components/ui/WhisperGuard";
-import CleanPlayerNudge from "@/components/ui/CleanPlayerNudge";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,7 +34,6 @@ export default function RootLayout({
         <WhisperCursor />
         <WhisperScroll />
         <WhisperGuard />
-        <CleanPlayerNudge />
         {children}
       </body>
     </html>

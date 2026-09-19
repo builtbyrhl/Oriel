@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import CastSection from "./CastSection";
 import PlaybackPlayer from "./PlaybackPlayer";
+import UBlockNotice from "@/components/ui/UBlockNotice";
 import type { SeasonDef } from "./SeasonEpisodePicker";
 
 type Credit = {
@@ -43,6 +44,7 @@ export default function MovieClient({
         contentType={contentType}
         seasons={contentType === "series" ? seasons : undefined}
       />
+      <UBlockNotice />
       <CastSection cast={credits.cast} />
     </motion.div>
   );
