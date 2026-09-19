@@ -2,8 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getStream } from "@/lib/streaming/manager";
+import {
+  checkSelfhostedHealth,
+  selfhostedOrigin,
+} from "@/lib/streaming/selfhosted";
 import type { MediaType } from "@/lib/streaming/types";
 import VideoPlayer from "./VideoPlayer";
+
+const SELFHOSTED = "vidlink-selfhosted";
+const ORIGIN = selfhostedOrigin();
 
 interface PlayerOverlayProps {
   tmdbId: number;
@@ -36,21 +43,55 @@ export default function PlayerOverlay({
     [tmdbId, type, season, episode]
   );
 
-  const [activeSourceIndex, setActiveSourceIndex] = useState(() => {
-    if (stream.sources.length <= 1) return 0;
+  // Self-hosted proxy liveness. A dead/expired deployment returns a Vercel
+  // login bounce instead of a player, so we probe /health once (cached 5 min)
+  // and hide the source when unreachable rather than surfacing the redirect.
+  const [selfhostedDown, setSelfhostedDown] = useState(false);
+  const [selfhostedChecked, setSelfhostedChecked] = useState(ORIGIN === "");
+
+  useEffect(() => {
+    if (ORIGIN === "") return;
+    let alive = true;
+    checkSelfhostedHealth(ORIGIN).then((ok) => {
+      if (!alive) return;
+      setSelfhostedChecked(true);
+      if (!ok) setSelfhostedDown(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const sources = selfhostedDown && ORIGIN !== ""
+    ? stream.sources.filter((s) => s.provider !== SELFHOSTED)
+    : stream.sources;
+
+  const [activeProvider, setActiveProvider] = useState<string>(() => {
+    if (stream.sources.length === 0) return "";
     const saved =
       typeof window !== "undefined"
-        ? window.localStorage.getItem(
-            storageKey(tmdbId, type, season, episode),
-          )
+        ? window.localStorage.getItem(storageKey(tmdbId, type, season, episode))
         : null;
     const parsed = saved ? Number(saved) : NaN;
-    return Number.isFinite(parsed) && parsed >= 0 && parsed < stream.sources.length
-      ? parsed
-      : 0;
+    const idx =
+      Number.isFinite(parsed) && parsed >= 0 && parsed < stream.sources.length
+        ? parsed
+        : 0;
+    return stream.sources[idx]?.provider ?? "";
   });
 
-  const active = stream.sources[activeSourceIndex];
+  useEffect(() => {
+    // Title changed or the active source dropped out (health check) — snap
+    // back to the default source for the current list.
+    setActiveProvider((prev) =>
+      prev && sources.some((s) => s.provider === prev)
+        ? prev
+        : sources[0]?.provider ?? ""
+    );
+  }, [selfhostedDown, tmdbId, type, season, episode]);
+
+  const active =
+    sources.find((s) => s.provider === activeProvider) ?? sources[0];
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -64,20 +105,26 @@ export default function PlayerOverlay({
     };
   }, [onClose]);
 
-  const onSelect = (index: number) => {
-    setActiveSourceIndex(index);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(
-        storageKey(tmdbId, type, season, episode),
-        String(index),
-      );
+  const onSelect = (name: string) => {
+    setActiveProvider(name);
+    const full = stream.sources.findIndex((s) => s.provider === name);
+    if (typeof window !== "undefined" && full >= 0) {
+      window.localStorage.setItem(storageKey(tmdbId, type, season, episode), String(full));
     }
   };
 
   const onNext = () => {
-    if (stream.sources.length <= 1) return;
-    onSelect((activeSourceIndex + 1) % stream.sources.length);
+    if (sources.length <= 1) return;
+    const cur = sources.findIndex((s) => s.provider === active?.provider);
+    onSelect(sources[(cur + 1) % sources.length]!.provider);
   };
+
+  // Don't paint the selfhosted frame until the liveness probe confirms it —
+  // this is what prevents the dashboard-redirect flash on a dead proxy.
+  const waitingHealth =
+    ORIGIN !== "" &&
+    !selfhostedChecked &&
+    active?.provider === SELFHOSTED;
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-sm">
@@ -94,7 +141,7 @@ export default function PlayerOverlay({
         </div>
 
         <div className="flex items-center gap-2">
-          {stream.sources.length > 1 && active?.url ? (
+          {sources.length > 1 && active?.url ? (
             <button
               onClick={onNext}
               className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/75 opacity-75 transition hover:opacity-100 hover:bg-white/15"
@@ -104,14 +151,14 @@ export default function PlayerOverlay({
             </button>
           ) : null}
           <select
-            value={activeSourceIndex}
-            onChange={(e) => onSelect(Number(e.target.value))}
+            value={active?.provider ?? ""}
+            onChange={(e) => onSelect(e.target.value)}
             className="rounded-md border border-white/15 bg-white/5 px-2 py-1.5 text-xs text-white outline-none focus:border-white/40"
             aria-label="Switch source"
-            disabled={stream.sources.length === 0}
+            disabled={sources.length === 0}
           >
-            {stream.sources.map((s, i) => (
-              <option key={s.provider} value={i} className="bg-zinc-900">
+            {sources.map((s) => (
+              <option key={s.provider} value={s.provider} className="bg-zinc-900">
                 {s.label}
               </option>
             ))}
@@ -127,11 +174,13 @@ export default function PlayerOverlay({
       </header>
 
       <div className="relative flex-1">
-        {active?.url ? (
+        {active?.url && !waitingHealth ? (
           <VideoPlayer key={active.url} src={active.url} title={title} />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-white/40">
-            No playable sources for this title.
+            {active?.url
+              ? "Checking best source…"
+              : "No playable sources for this title."}
           </div>
         )}
       </div>

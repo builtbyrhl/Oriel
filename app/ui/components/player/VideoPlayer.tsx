@@ -38,7 +38,6 @@ export default function VideoPlayer({ src, title }: VideoPlayerProps) {
         allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-read; clipboard-write"
         allowFullScreen
         referrerPolicy="no-referrer"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock"
         onLoad={() => setReady(true)}
       />
     </div>

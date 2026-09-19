@@ -147,7 +147,6 @@ export default function PlaybackPlayer({
               allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-read; clipboard-write"
               allowFullScreen
               referrerPolicy="no-referrer"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock"
             />
           </div>
           <div className="flex flex-col gap-4 p-6 text-sm text-white/50 md:flex-row md:items-center md:justify-between">
