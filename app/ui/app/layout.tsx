@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import WhisperCursor from "@/components/ui/WhisperCursor";
 import WhisperScroll from "@/components/ui/WhisperScroll";
@@ -31,6 +32,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#050507]">
+        <Analytics />
         <WhisperCursor />
         <WhisperScroll />
         <WhisperGuard />
