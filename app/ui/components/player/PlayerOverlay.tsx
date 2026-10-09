@@ -7,6 +7,7 @@ import {
   selfhostedOrigin,
 } from "@/lib/streaming/selfhosted";
 import type { MediaType } from "@/lib/streaming/types";
+import SourcePicker from "./SourcePicker";
 import VideoPlayer from "./VideoPlayer";
 
 const SELFHOSTED = "vidlink-selfhosted";
@@ -80,15 +81,15 @@ export default function PlayerOverlay({
     return stream.sources[idx]?.provider ?? "";
   });
 
-  useEffect(() => {
-    // Title changed or the active source dropped out (health check) — snap
-    // back to the default source for the current list.
-    setActiveProvider((prev) =>
-      prev && sources.some((s) => s.provider === prev)
-        ? prev
-        : sources[0]?.provider ?? ""
-    );
-  }, [selfhostedDown, tmdbId, type, season, episode]);
+  // Content identity changed (title/episode) — snap back to the default
+  // source. Render-phase state adjustment: React re-renders immediately,
+  // so no effect (and no cascading setState) is involved.
+  const contentKey = storageKey(tmdbId, type, season, episode);
+  const [trackedKey, setTrackedKey] = useState(contentKey);
+  if (trackedKey !== contentKey) {
+    setTrackedKey(contentKey);
+    setActiveProvider(sources[0]?.provider ?? "");
+  }
 
   const active =
     sources.find((s) => s.provider === activeProvider) ?? sources[0];
@@ -150,19 +151,6 @@ export default function PlayerOverlay({
               ↻ Next source
             </button>
           ) : null}
-          <select
-            value={active?.provider ?? ""}
-            onChange={(e) => onSelect(e.target.value)}
-            className="rounded-md border border-white/15 bg-white/5 px-2 py-1.5 text-xs text-white outline-none focus:border-white/40"
-            aria-label="Switch source"
-            disabled={sources.length === 0}
-          >
-            {sources.map((s) => (
-              <option key={s.provider} value={s.provider} className="bg-zinc-900">
-                {s.label}
-              </option>
-            ))}
-          </select>
 
           <button
             onClick={onClose}
@@ -172,6 +160,17 @@ export default function PlayerOverlay({
           </button>
         </div>
       </header>
+
+      {sources.length > 1 ? (
+        <div className="border-b border-white/10 bg-black/40 py-2">
+          <SourcePicker
+            variant="overlay"
+            items={sources.map((s) => ({ id: s.provider, label: s.label }))}
+            activeId={active?.provider ?? ""}
+            onSelect={onSelect}
+          />
+        </div>
+      ) : null}
 
       <div className="relative flex-1">
         {active?.url && !waitingHealth ? (

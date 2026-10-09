@@ -11,6 +11,7 @@ import {
 import { getPlaybackProviders } from "@/lib/playback/providers";
 import { buildPlaybackUrl } from "@/lib/playback/url";
 import type { PlaybackContentType } from "@/lib/playback/types";
+import SourcePicker from "@/components/player/SourcePicker";
 import type { SeasonDef } from "@/components/movie/SeasonEpisodePicker";
 import SeasonEpisodePicker from "@/components/movie/SeasonEpisodePicker";
 
@@ -92,36 +93,28 @@ export default function PlaybackPlayer({
 
   return (
     <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]">
-      <div className="flex flex-col gap-5 border-b border-white/10 p-6 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-white/45">
-            <ShieldCheck className="h-4 w-4" />
-            <span>Authorized playback</span>
-          </div>
-          <h2 className="text-2xl font-light">
-            Watch {title}
-          </h2>
-          <p className="mt-2 text-sm text-white/50">
-            {contentType === "movie"
-              ? "Select a configured playback source."
-              : "Choose a season and episode, then pick a playback source."}
-          </p>
+      <div className="border-b border-white/10 p-6">
+        <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-white/45">
+          <ShieldCheck className="h-4 w-4" />
+          <span>Authorized playback</span>
         </div>
+        <h2 className="text-2xl font-light">
+          Watch {title}
+        </h2>
+        <p className="mt-2 text-sm text-white/50">
+          {contentType === "movie"
+            ? "Pick a source — every source below can play this title."
+            : "Choose a season and episode, then pick a source."}
+        </p>
+      </div>
 
-        <label className="flex flex-col gap-2 text-xs text-white/50">
-          Playback source
-          <select
-            value={selectedProvider?.id ?? ""}
-            onChange={(event) => setSelectedProviderId(event.target.value)}
-            className="w-full min-w-[200px] rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white"
-          >
-            {providers.map((provider) => (
-              <option key={provider.id} value={provider.id}>
-                {provider.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="border-b border-white/10 px-6 py-4">
+        <SourcePicker
+          variant="page"
+          items={providers.map((p) => ({ id: p.id, label: p.name }))}
+          activeId={selectedProviderId}
+          onSelect={setSelectedProviderId}
+        />
       </div>
 
       {contentType === "series" && (
