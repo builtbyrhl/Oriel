@@ -5,6 +5,7 @@ type TmdbEpisode = {
   name: string;
   still_path: string | null;
   air_date: string;
+  overview: string;
 };
 
 export async function GET(request: Request) {
@@ -79,6 +80,7 @@ export async function GET(request: Request) {
         name: e.name,
         img: e.still_path ? `https://image.tmdb.org/t/p/w300${e.still_path}` : null,
         date: e.air_date,
+        overview: e.overview ?? "",
       }));
 
     return NextResponse.json({

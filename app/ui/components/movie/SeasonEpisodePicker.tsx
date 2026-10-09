@@ -14,6 +14,7 @@ type EpisodeDef = {
   name: string;
   img: string | null;
   date: string;
+  overview: string;
 };
 
 interface Props {
@@ -179,7 +180,7 @@ export default function SeasonEpisodePicker({
                   aria-checked={selected}
                   onClick={() => onChange({ season: active.season, episode: ep.number })}
                   className={[
-                    "group relative overflow-hidden rounded-xl border text-left transition-all duration-200",
+                    "group relative flex flex-col overflow-hidden rounded-xl border text-left transition-all duration-200",
                     selected
                       ? "border-white/60 ring-1 ring-white/40"
                       : "border-white/10 hover:border-white/30",
@@ -211,12 +212,17 @@ export default function SeasonEpisodePicker({
                     )}
                   </div>
 
-                  <div className="p-2.5">
-                    <p className="truncate text-xs font-medium text-white/85">
+                  <div className="flex flex-1 flex-col p-2.5">
+                    <p className="line-clamp-2 text-xs font-medium text-white/85">
                       {ep.name}
                     </p>
+                    {ep.overview ? (
+                      <p className="mt-1.5 line-clamp-3 text-[11px] leading-relaxed text-white/40">
+                        {ep.overview}
+                      </p>
+                    ) : null}
                     {formatDate(ep.date) && (
-                      <p className="mt-0.5 text-[10px] text-white/35">
+                      <p className="mt-auto pt-1.5 text-[10px] text-white/35">
                         {formatDate(ep.date)}
                       </p>
                     )}
