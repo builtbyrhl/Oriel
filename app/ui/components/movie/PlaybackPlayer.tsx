@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ExternalLink,
@@ -50,6 +50,17 @@ export default function PlaybackPlayer({
 
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
+  const sectionRef = useRef<HTMLElement>(null);
+  const pendingScroll = useRef(false);
+
+  // After the viewer picks an episode deep in the list, glide the player back
+  // into view so playback starts where their eyes are.
+  useEffect(() => {
+    if (pendingScroll.current) {
+      pendingScroll.current = false;
+      sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [season, episode]);
 
   const selectedProvider =
     providers.find((provider) => provider.id === selectedProviderId) ??
@@ -92,7 +103,10 @@ export default function PlaybackPlayer({
   }
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]">
+    <section
+      ref={sectionRef}
+      className="scroll-mt-24 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]"
+    >
       <div className="border-b border-white/10 p-6">
         <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-white/45">
           <ShieldCheck className="h-4 w-4" />
@@ -119,10 +133,14 @@ export default function PlaybackPlayer({
 
       {contentType === "series" && (
         <SeasonEpisodePicker
+          tmdbId={tmdbId}
           seasons={seasons ?? []}
           season={season}
           episode={episode}
           onChange={(next) => {
+            if (next.episode !== episode) {
+              pendingScroll.current = true;
+            }
             setSeason(next.season);
             setEpisode(next.episode);
           }}

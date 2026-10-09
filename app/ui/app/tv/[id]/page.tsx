@@ -114,10 +114,17 @@ export default async function TvPage({
                     (s: { season_number?: number; episode_count?: number }) =>
                       (s.season_number ?? 0) >= 1,
                   )
-                  .map((s: { season_number: number; episode_count?: number }) => ({
-                    season: s.season_number,
-                    episodes: s.episode_count ?? 0,
-                  }))
+                  .map(
+                    (s: {
+                      season_number: number;
+                      episode_count?: number;
+                      name?: string;
+                    }) => ({
+                      season: s.season_number,
+                      episodes: s.episode_count ?? 0,
+                      name: s.name ?? "",
+                    })
+                  )
               : undefined
           }
           credits={credits}
