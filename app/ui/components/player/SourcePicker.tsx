@@ -1,7 +1,5 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
-
 type PickerItem = {
   id: string;
   label: string;
@@ -18,12 +16,9 @@ type Props = {
   variant: "page" | "overlay";
 };
 
-const SELFHOSTED = "vidlink-selfhosted";
-
 /**
  * Source switcher rendered as pill chips (never a native <select>).
- * Selected chip lifts with white fill + soft glow; the self-hosted source
- * carries a shield mark so "ad-free" is one glance away.
+ * Selected chip lifts with white fill + soft glow.
  */
 export default function SourcePicker({ items, activeId, onSelect, variant }: Props) {
   if (items.length === 0) return null;
@@ -48,7 +43,6 @@ export default function SourcePicker({ items, activeId, onSelect, variant }: Pro
         onClick={() => onSelect(item.id)}
         className={chip(active)}
       >
-        {item.id === SELFHOSTED && <ShieldCheck size={12} className="shrink-0" />}
         {item.label}
       </button>
     );

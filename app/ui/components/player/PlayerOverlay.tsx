@@ -2,16 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getStream } from "@/lib/streaming/manager";
-import {
-  checkSelfhostedHealth,
-  selfhostedOrigin,
-} from "@/lib/streaming/selfhosted";
 import type { MediaType } from "@/lib/streaming/types";
 import SourcePicker from "./SourcePicker";
 import VideoPlayer from "./VideoPlayer";
-
-const SELFHOSTED = "vidlink-selfhosted";
-const ORIGIN = selfhostedOrigin();
 
 interface PlayerOverlayProps {
   tmdbId: number;
@@ -44,28 +37,7 @@ export default function PlayerOverlay({
     [tmdbId, type, season, episode]
   );
 
-  // Self-hosted proxy liveness. A dead/expired deployment returns a Vercel
-  // login bounce instead of a player, so we probe /health once (cached 5 min)
-  // and hide the source when unreachable rather than surfacing the redirect.
-  const [selfhostedDown, setSelfhostedDown] = useState(false);
-  const [selfhostedChecked, setSelfhostedChecked] = useState(ORIGIN === "");
-
-  useEffect(() => {
-    if (ORIGIN === "") return;
-    let alive = true;
-    checkSelfhostedHealth(ORIGIN).then((ok) => {
-      if (!alive) return;
-      setSelfhostedChecked(true);
-      if (!ok) setSelfhostedDown(true);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const sources = selfhostedDown && ORIGIN !== ""
-    ? stream.sources.filter((s) => s.provider !== SELFHOSTED)
-    : stream.sources;
+  const sources = stream.sources;
 
   const [activeProvider, setActiveProvider] = useState<string>(() => {
     if (stream.sources.length === 0) return "";
@@ -120,13 +92,6 @@ export default function PlayerOverlay({
     onSelect(sources[(cur + 1) % sources.length]!.provider);
   };
 
-  // Don't paint the selfhosted frame until the liveness probe confirms it —
-  // this is what prevents the dashboard-redirect flash on a dead proxy.
-  const waitingHealth =
-    ORIGIN !== "" &&
-    !selfhostedChecked &&
-    active?.provider === SELFHOSTED;
-
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-sm">
       <header className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
@@ -173,13 +138,11 @@ export default function PlayerOverlay({
       ) : null}
 
       <div className="relative flex-1">
-        {active?.url && !waitingHealth ? (
+        {active?.url ? (
           <VideoPlayer key={active.url} src={active.url} title={title} />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-xs text-white/40">
-            {active?.url
-              ? "Checking best source…"
-              : "No playable sources for this title."}
+            No playable sources for this title.
           </div>
         )}
       </div>
