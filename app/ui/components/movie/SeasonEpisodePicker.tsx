@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Play } from "lucide-react";
 
 export interface SeasonDef {
@@ -9,19 +8,22 @@ export interface SeasonDef {
   name?: string;
 }
 
-type EpisodeDef = {
+export interface EpisodeDef {
   number: number;
   name: string;
   img: string | null;
   date: string;
   overview: string;
-};
+}
 
 interface Props {
-  tmdbId: number;
   seasons: SeasonDef[];
   season: number;
   episode: number;
+  /** Loaded episode details for the active season (null while loading). */
+  episodes?: EpisodeDef[] | null;
+  /** True when the episode-details load for the active season failed. */
+  failed?: boolean;
   onChange: (next: { season: number; episode: number }) => void;
 }
 
@@ -38,49 +40,28 @@ function formatDate(date: string): string {
 
 /**
  * Season + episode selector. Seasons appear as chips (same language as the
- * source picker); episodes appear as thumbnail cards with their real names
- * and air dates, fetched from TMDB. Numbered tiles remain only as a
- * graceful fallback when episode details can't be loaded.
+ * source picker); episodes appear as thumbnail cards with their real names,
+ * synopses and air dates. Numbered tiles remain only as a graceful fallback
+ * when episode details can't be loaded.
+ *
+ * Episode data is owned by the parent (PlaybackPlayer) so the same list can
+ * power the "Next episode" control in the player bar.
  */
 export default function SeasonEpisodePicker({
-  tmdbId,
   seasons,
   season,
   episode,
+  episodes,
+  failed = false,
   onChange,
 }: Props) {
   const seasonDefs = (seasons ?? []).filter((s) => s.season >= 1);
   const active = seasonDefs.find((s) => s.season === season) ?? seasonDefs[0];
 
-  const [episodes, setEpisodes] = useState<Record<number, EpisodeDef[]>>({});
-  const [failed, setFailed] = useState<Record<number, boolean>>({});
-
   const activeSeason = active?.season;
   const activeCount = active?.episodes ?? 0;
 
-  useEffect(() => {
-    if (!activeSeason || activeCount === 0) return;
-    if (activeSeason in episodes || failed[activeSeason]) return;
-
-    let alive = true;
-
-    fetch(`/api/tmdb/tv-season?id=${tmdbId}&season=${activeSeason}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data: { episodes: EpisodeDef[] }) => {
-        if (!alive) return;
-        setEpisodes((prev) => ({ ...prev, [activeSeason]: data.episodes ?? [] }));
-      })
-      .catch(() => {
-        if (!alive) return;
-        setFailed((prev) => ({ ...prev, [activeSeason]: true }));
-      });
-
-    return () => {
-      alive = false;
-    };
-  }, [tmdbId, activeSeason, activeCount, episodes, failed]);
-
-  if (!active) {
+  if (!active || activeCount === 0) {
     return (
       <div className="flex flex-wrap items-end gap-5 border-b border-white/10 p-6">
         <label className="flex flex-col gap-2 text-xs text-white/50">
@@ -109,8 +90,8 @@ export default function SeasonEpisodePicker({
     );
   }
 
-  const seasonEpisodes = activeSeason ? episodes[activeSeason] : undefined;
-  const loadFailed = activeSeason ? Boolean(failed[activeSeason]) : false;
+  const seasonEpisodes = activeSeason ? episodes ?? undefined : undefined;
+  const loadFailed = Boolean(failed);
 
   const seasonChip = (def: SeasonDef, isActive: boolean): string =>
     [
