@@ -8,15 +8,58 @@ type Props = {
   params: Promise<{
     id: string;
   }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 const IMG =
   "https://image.tmdb.org/t/p/original";
 
+function firstValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+/**
+ * Playback position from ?s=&e= (kept in sync by the player component).
+ * Clamped to the show's real seasons/episode counts; invalid values fall
+ * back to season 1, episode 1.
+ */
+function readTvPosition(
+  searchParams: Record<string, string | string[] | undefined>,
+  seasons: Array<{ season_number?: number; episode_count?: number }>,
+): { season: number; episode: number } {
+  const fallback = { season: 1, episode: 1 };
+  const valid = seasons.filter((s) => (s.season_number ?? 0) >= 1);
+  if (valid.length === 0) {
+    const s = Number(firstValue(searchParams.s));
+    const e = Number(firstValue(searchParams.e));
+    return Number.isInteger(s) && s >= 1 && Number.isInteger(e) && e >= 1
+      ? { season: s, episode: e }
+      : fallback;
+  }
+
+  const requestedSeason = Number(firstValue(searchParams.s));
+  const season = valid.some((s) => s.season_number === requestedSeason)
+    ? requestedSeason
+    : valid[0]!.season_number!;
+  const seasonDef = valid.find((s) => s.season_number === season)!;
+
+  const requestedEpisode = Number(firstValue(searchParams.e));
+  const episode =
+    Number.isInteger(requestedEpisode) && requestedEpisode >= 1
+      ? seasonDef.episode_count && requestedEpisode > seasonDef.episode_count
+        ? seasonDef.episode_count
+        : requestedEpisode
+      : 1;
+
+  return { season, episode };
+}
+
 export default async function TvPage({
   params,
+  searchParams,
 }: Props) {
   const { id } = await params;
+  const sp = await searchParams;
 
   const tv = await getTv(id);
   const credits = await getTvCredits(id);
@@ -26,6 +69,11 @@ export default async function TvPage({
 
   const year =
     (tv.first_air_date || "").slice(0, 4);
+
+  const position = readTvPosition(
+    sp,
+    Array.isArray(tv.seasons) ? tv.seasons : [],
+  );
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
@@ -94,13 +142,13 @@ export default async function TvPage({
         />
 
         <div className="mt-8">
-          <MovieActions
-            tmdbId={tv.id}
-            type="tv"
-            title={title}
-            season={1}
-            episode={1}
-          />
+        <MovieActions
+          tmdbId={tv.id}
+          type="tv"
+          title={title}
+          season={position.season}
+          episode={position.episode}
+        />
         </div>
 
          <MovieClient
