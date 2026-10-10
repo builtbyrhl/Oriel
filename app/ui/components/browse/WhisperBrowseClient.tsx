@@ -36,7 +36,7 @@ const GENRE_ROWS = (type: "movie" | "tv") =>
         { key: "g10765", title: "Sci-Fi & Fantasy", index: "08" },
       ]
     : [
-        { key: "g16", title: "Animated", index: "06" },
+        { key: "g16", title: "Anime & Animation", index: "06" },
         { key: "g28", title: "Action", index: "07" },
         { key: "g35", title: "Comedy", index: "08" },
       ];
@@ -61,20 +61,19 @@ export default function WhisperBrowseClient() {
     async function load() {
       try {
         setLoading(true);
-        const [trendRes, popRes, topRes, ...genreRes] = await Promise.all([
+        const genreDefs = GENRE_ROWS(type);
+
+        const [trendRes, popRes, topRes] = await Promise.all([
           fetch(`/api/tmdb/trending?type=${type}`, { cache: "no-store" }),
           fetch(`/api/tmdb/popular?type=${type}`, { cache: "no-store" }),
           fetch(`/api/tmdb/top-rated?type=${type}`, { cache: "no-store" }),
-          ...GENRE_ROWS(type).map((g) =>
-            fetch(`/api/tmdb/genre?type=${type}&genre=${g.key.slice(1)}`, {
-              cache: "no-store",
-            }),
-          ),
         ]);
 
-        const [trendData, popData, topData, ...genreData] = await Promise.all(
-          [trendRes, popRes, topRes, ...genreRes].map((r) => r.json()),
-        );
+        const [trendData, popData, topData] = await Promise.all([
+          trendRes.json(),
+          popRes.json(),
+          topRes.json(),
+        ]);
 
         if (cancelled) return;
 
@@ -90,15 +89,31 @@ export default function WhisperBrowseClient() {
 
         const trend = map(trendData.results || []);
         setFeatured(trend[0] || null);
+
+        // Genre shelves are bonus content: a failed fetch hides that shelf
+        // instead of taking the whole page down with it.
+        const genreOutcomes = await Promise.allSettled(
+          genreDefs.map((g) =>
+            fetch(`/api/tmdb/genre?type=${type}&genre=${g.key.slice(1)}`, {
+              cache: "no-store",
+            }).then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))),),
+          ),
+        );
+
         setRows({
           trending: trend,
           popular: map(popData.results || []),
           topRated: map(topData.results || []),
           ...Object.fromEntries(
-            GENRE_ROWS(type).map((g, i) => [
-              g.key,
-              map(genreData[i]?.results || []),
-            ]),
+            genreDefs.map((g, i) => {
+              const outcome = genreOutcomes[i]!;
+              return [
+                g.key,
+                outcome.status === "fulfilled"
+                  ? map(outcome.value?.results || [])
+                  : [],
+              ];
+            }),
           ),
         });
 
