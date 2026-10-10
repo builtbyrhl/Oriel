@@ -141,14 +141,19 @@ export default function SourcePicker({
     );
   }
 
-  // ——— Page: curated row + "+N more" drawer ———
+  // A short backup shelf stays inline (no hunting); a long one folds behind
+  // "All N sources" so depth never becomes noise.
+  const drawerThreshold = 3;
+  const useDrawer = sortedSecondary.length > drawerThreshold;
+
+  // ——— Page: curated row (+ inline or folded backup shelf) ———
   return (
     <div>
       <div className="flex items-baseline justify-between">
         <p className="text-xs uppercase tracking-widest text-white/45">
           Source
         </p>
-        {sortedSecondary.length > 0 && (
+        {useDrawer && (
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
@@ -166,7 +171,7 @@ export default function SourcePicker({
       <div
         role="radiogroup"
         aria-label="Playback source"
-        className="mt-2.5 flex flex-wrap gap-1.5"
+        className="mt-2.5 flex flex-wrap items-center gap-1.5"
       >
         {items.map((item) => (
           <button
@@ -180,16 +185,34 @@ export default function SourcePicker({
             {item.label}
           </button>
         ))}
+
+        {!useDrawer &&
+          sortedSecondary.map((item) => {
+            const active = item.id === activeId;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => onSelect(item.id)}
+                className={chip(active, false)}
+              >
+                {dot(item.id)}
+                {item.label}
+              </button>
+            );
+          })}
       </div>
 
-      {expanded && (
+      {useDrawer && expanded && (
         <div className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-3">
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
             {sortedSecondary.map(withDot)}
           </div>
           <p className="mt-2.5 text-[10px] leading-relaxed text-white/25">
-            Extended mirrors · dots show live reachability — green opens,
-            red is down.
+            Backup mirrors · dots show live reachability from Oriel&apos;s
+            servers — green opens reliably, red may still work in your browser.
           </p>
         </div>
       )}
