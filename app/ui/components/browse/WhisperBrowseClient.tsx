@@ -26,6 +26,21 @@ const ROWS = [
   { key: "topRated", title: "Critically Acclaimed", index: "05" },
 ] as const;
 
+// Curated genre shelves (TMDB genre ids) — anime first, since it's what
+// people come here for after western content.
+const GENRE_ROWS = (type: "movie" | "tv") =>
+  type === "tv"
+    ? [
+        { key: "g16", title: "Anime", index: "06" },
+        { key: "g35", title: "Comedy", index: "07" },
+        { key: "g10765", title: "Sci-Fi & Fantasy", index: "08" },
+      ]
+    : [
+        { key: "g16", title: "Animated", index: "06" },
+        { key: "g28", title: "Action", index: "07" },
+        { key: "g35", title: "Comedy", index: "08" },
+      ];
+
 const EASE = [0.23, 1, 0.32, 1] as const;
 
 export default function WhisperBrowseClient() {
@@ -46,17 +61,20 @@ export default function WhisperBrowseClient() {
     async function load() {
       try {
         setLoading(true);
-        const [trendRes, popRes, topRes] = await Promise.all([
+        const [trendRes, popRes, topRes, ...genreRes] = await Promise.all([
           fetch(`/api/tmdb/trending?type=${type}`, { cache: "no-store" }),
           fetch(`/api/tmdb/popular?type=${type}`, { cache: "no-store" }),
           fetch(`/api/tmdb/top-rated?type=${type}`, { cache: "no-store" }),
+          ...GENRE_ROWS(type).map((g) =>
+            fetch(`/api/tmdb/genre?type=${type}&genre=${g.key.slice(1)}`, {
+              cache: "no-store",
+            }),
+          ),
         ]);
 
-        const [trendData, popData, topData] = await Promise.all([
-          trendRes.json(),
-          popRes.json(),
-          topRes.json(),
-        ]);
+        const [trendData, popData, topData, ...genreData] = await Promise.all(
+          [trendRes, popRes, topRes, ...genreRes].map((r) => r.json()),
+        );
 
         if (cancelled) return;
 
@@ -76,6 +94,12 @@ export default function WhisperBrowseClient() {
           trending: trend,
           popular: map(popData.results || []),
           topRated: map(topData.results || []),
+          ...Object.fromEntries(
+            GENRE_ROWS(type).map((g, i) => [
+              g.key,
+              map(genreData[i]?.results || []),
+            ]),
+          ),
         });
 
         // Expand list — use trending movies with descriptions
@@ -181,6 +205,22 @@ export default function WhisperBrowseClient() {
                   />
                 </motion.div>
               ))}
+
+              {/* Genre shelves — hidden while empty */}
+              {GENRE_ROWS(type)
+                .filter((g) => (rows[g.key] || []).length > 0)
+                .map((g) => (
+                  <motion.div
+                    key={g.key}
+                    variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: EASE } } }}
+                  >
+                    <WhisperRow
+                      title={g.title}
+                      index={g.index}
+                      movies={rows[g.key] || []}
+                    />
+                  </motion.div>
+                ))}
 
               {/* Continue watching */}
               <motion.div
