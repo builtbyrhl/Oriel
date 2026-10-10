@@ -27,6 +27,7 @@ export function getStream({ tmdbId, type, season = 1, episode = 1 }: GetStreamAr
       provider: p.name,
       label: p.label,
       url: buildProviderUrl(p, tmdbId, type === "movie" ? "movie" : "tv", season, episode),
+      tier: p.tier ?? "primary",
     }))
     // drop any provider that can't serve this content type
     .filter((s) => Boolean(s.url));

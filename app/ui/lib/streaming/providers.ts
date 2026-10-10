@@ -103,4 +103,132 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
     seriesUrlTemplate: "https://vidsrc.pm/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "Vidflix (vidsrc.pm) embed.",
   },
+  // ——— Extended catalog (secondary tier) ———
+  // Hidden behind the "+N more" drawer. Each is live-probed by
+  // /api/streaming/status and shown with a status dot; mirrors that are
+  // unreachable from the edge simply sort to the bottom as "down".
+  {
+    name: "vidsrcme",
+    label: "VidSrc.me",
+    rank: 100,
+    tier: "secondary",
+    movieUrlTemplate: "https://vidsrc.me/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.me/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc mirror.",
+  },
+  {
+    name: "vidsrcnew",
+    label: "VidSrc.new",
+    rank: 101,
+    tier: "secondary",
+    movieUrlTemplate: "https://vidsrc.new/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.new/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc mirror.",
+  },
+  {
+    name: "vidsrclo",
+    label: "VidSrc.lol",
+    rank: 102,
+    tier: "secondary",
+    movieUrlTemplate: "https://vidsrc.lol/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.lol/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc mirror.",
+  },
+  {
+    name: "vidsrcto",
+    label: "VidSrc.to",
+    rank: 103,
+    tier: "secondary",
+    movieUrlTemplate: "https://vidsrc.to/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.to/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc mirror.",
+  },
+  {
+    name: "vidsrchomes",
+    label: "VidSrc.homes",
+    rank: 104,
+    tier: "secondary",
+    movieUrlTemplate: "https://vidsrc.homes/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.homes/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc mirror.",
+  },
+  {
+    name: "vidsrcpw",
+    label: "VidSrc.pw",
+    rank: 105,
+    tier: "secondary",
+    movieUrlTemplate: "https://vidsrc.pw/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.pw/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc mirror.",
+  },
+  {
+    name: "vidsrcfun",
+    label: "VidSrc.fun",
+    rank: 106,
+    tier: "secondary",
+    movieUrlTemplate: "https://vidsrc.fun/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.fun/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc mirror.",
+  },
+  {
+    name: "vidsrcbest",
+    label: "VidSrc.best",
+    rank: 107,
+    tier: "secondary",
+    movieUrlTemplate: "https://vidsrc.best/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.best/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc mirror.",
+  },
+  {
+    name: "vidsrcasia",
+    label: "VidSrc.asia",
+    rank: 108,
+    tier: "secondary",
+    movieUrlTemplate: "https://vidsrc.asia/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.asia/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc mirror.",
+  },
+  {
+    name: "vidsrcfish",
+    label: "VidSrc.fish",
+    rank: 109,
+    tier: "secondary",
+    movieUrlTemplate: "https://vidsrc.fish/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.fish/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc mirror.",
+  },
+  {
+    name: "multiembed",
+    label: "MultiEmbed",
+    rank: 110,
+    tier: "secondary",
+    movieUrlTemplate: "https://www.multiembed.mov/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://www.multiembed.mov/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "MultiEmbed mirror.",
+  },
+  {
+    name: "twoembedwiki",
+    label: "2Embed.wiki",
+    rank: 111,
+    tier: "secondary",
+    movieUrlTemplate: "https://www.2embed.wiki/embed/{{tmdbId}}",
+    seriesUrlTemplate: "https://www.2embed.wiki/embedtv/{{tmdbId}}&s={{season}}&e={{episode}}",
+    description: "2Embed mirror.",
+  },
 ];
+
+/**
+ * Ranked sources split by tier. Primary is the curated default row;
+ * secondary is the extended catalog shown behind "+N more" with live
+ * status. Both keep rank order (primary first, then secondary).
+ */
+export function getTieredProviders(): {
+  primary: StreamingProvider[];
+  secondary: StreamingProvider[];
+} {
+  const ranked = getRankedProviders();
+  return {
+    primary: ranked.filter((p) => (p.tier ?? "primary") === "primary"),
+    secondary: ranked.filter((p) => p.tier === "secondary"),
+  };
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getStream } from "@/lib/streaming/manager";
+import { useSourceHealth } from "@/hooks/useSourceHealth";
 import type { MediaType } from "@/lib/streaming/types";
 import SourcePicker from "./SourcePicker";
 import VideoPlayer from "./VideoPlayer";
@@ -38,6 +39,11 @@ export default function PlayerOverlay({
   );
 
   const sources = stream.sources;
+
+  // Curated row vs extended strip (secondary tier, live status dots).
+  const primarySources = sources.filter((s) => s.tier !== "secondary");
+  const secondarySources = sources.filter((s) => s.tier === "secondary");
+  const sourceHealth = useSourceHealth(tmdbId, type);
 
   const [activeProvider, setActiveProvider] = useState<string>(() => {
     if (stream.sources.length === 0) return "";
@@ -130,7 +136,15 @@ export default function PlayerOverlay({
         <div className="border-b border-white/10 bg-black/40 py-2">
           <SourcePicker
             variant="overlay"
-            items={sources.map((s) => ({ id: s.provider, label: s.label }))}
+            items={primarySources.map((s) => ({
+              id: s.provider,
+              label: s.label,
+            }))}
+            secondaryItems={secondarySources.map((s) => ({
+              id: s.provider,
+              label: s.label,
+            }))}
+            health={sourceHealth}
             activeId={active?.provider ?? ""}
             onSelect={onSelect}
           />

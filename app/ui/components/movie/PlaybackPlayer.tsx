@@ -13,6 +13,7 @@ import {
 import { getPlaybackProviders } from "@/lib/playback/providers";
 import { buildPlaybackUrl } from "@/lib/playback/url";
 import type { PlaybackContentType } from "@/lib/playback/types";
+import { useSourceHealth } from "@/hooks/useSourceHealth";
 import BrandedIframe from "@/components/player/BrandedIframe";
 import SourcePicker from "@/components/player/SourcePicker";
 import type {
@@ -77,6 +78,16 @@ export default function PlaybackPlayer({
   const providers = useMemo(
     () => getPlaybackProviders(contentType),
     [contentType],
+  );
+
+  // Curated row vs extended drawer.
+  const primaryProviders = providers.filter((p) => p.tier !== "secondary");
+  const secondaryProviders = providers.filter((p) => p.tier === "secondary");
+
+  // Live reachability of the extended pool (probed server-side, cached).
+  const sourceHealth = useSourceHealth(
+    tmdbId,
+    contentType === "series" ? "tv" : "movie",
   );
 
   const [selectedProviderId, setSelectedProviderId] = useState(() => {
@@ -266,7 +277,12 @@ export default function PlaybackPlayer({
       <div className="border-b border-white/10 px-6 py-4">
         <SourcePicker
           variant="page"
-          items={providers.map((p) => ({ id: p.id, label: p.name }))}
+          items={primaryProviders.map((p) => ({ id: p.id, label: p.name }))}
+          secondaryItems={secondaryProviders.map((p) => ({
+            id: p.id,
+            label: p.name,
+          }))}
+          health={sourceHealth}
           activeId={selectedProviderId}
           onSelect={setSelectedProviderId}
         />
