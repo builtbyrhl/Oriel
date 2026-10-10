@@ -134,12 +134,15 @@ export default function PlaybackPlayer({
     window.history.replaceState(window.history.state, "", url);
   };
 
-  const selectPosition = (next: Position) => {
+  // `scroll` controls whether we glide the player back into view: true for a
+  // deliberate pick from the grid, false for the Next button so repeated
+  // nexting never yanks the viewport.
+  const selectPosition = (next: Position, scroll = true) => {
     const episodeChanged = next.episode !== episode;
     setSeason(next.season);
     setEpisode(next.episode);
     writePosition(next);
-    if (episodeChanged) {
+    if (episodeChanged && scroll) {
       pendingScroll.current = true;
     }
   };
@@ -300,10 +303,10 @@ export default function PlaybackPlayer({
                   type="button"
                   onClick={() => {
                     if (nextEpisode) {
-                      selectPosition({
-                        season,
-                        episode: nextEpisode.number,
-                      });
+                      selectPosition(
+                        { season, episode: nextEpisode.number },
+                        false,
+                      );
                     }
                   }}
                   className="inline-flex max-w-[260px] items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-white/75 transition hover:border-white/30 hover:bg-white/10 hover:text-white"
