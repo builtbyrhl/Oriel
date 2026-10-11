@@ -55,42 +55,41 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
     description: "Open-source, multi-mirror embed.",
   },
   {
+    name: "twoembed",
+    label: "2Embed",
+    rank: 2,
+    movieUrlTemplate: "https://www.2embed.cc/embed/{{tmdbId}}",
+    seriesUrlTemplate: "https://www.2embed.cc/embedtv/{{tmdbId}}&s={{season}}&e={{episode}}",
+    description: "2Embed embed — strong anime + cartoon coverage.",
+  },
+  {
+    name: "vidsrcv2",
+    label: "VidSrc",
+    rank: 3,
+    movieUrlTemplate: "https://v2.vidsrc.me/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://v2.vidsrc.me/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc embed.",
+  },
+  // ——— Backup shelf (secondary tier) ———
+  // Same three brands' redundant mirrors, all verified alive today. Shown
+  // as a green-dot shelf behind "All N sources" so depth never means
+  // noise. Dead mirrors are simply not registered (see the git history for
+  // the retired .new/.lol/.to/.homes/.pw/.fun/.best/.asia/.fish/.wiki
+  // clones and the defunct MultiEmbed/2Embed.wiki hosts).
+  {
     name: "vidsrcio",
     label: "VidSrc.io",
-    rank: 2,
+    rank: 4,
+    tier: "secondary",
     movieUrlTemplate: "https://vidsrc.io/embed/movie/{{tmdbId}}",
     seriesUrlTemplate: "https://vidsrc.io/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "VidSrc.io mirror.",
   },
   {
-    name: "twoembed",
-    label: "2Embed.cc",
-    rank: 3,
-    movieUrlTemplate: "https://www.2embed.cc/embed/{{tmdbId}}",
-    seriesUrlTemplate: "https://www.2embed.cc/embedtv/{{tmdbId}}&s={{season}}&e={{episode}}",
-    description: "2Embed.cc embed — strong anime + cartoon coverage.",
-  },
-  {
-    name: "vidsrcv2",
-    label: "VidSrc.v2",
-    rank: 4,
-    movieUrlTemplate: "https://v2.vidsrc.me/embed/movie/{{tmdbId}}",
-    seriesUrlTemplate: "https://v2.vidsrc.me/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
-    description: "VidSrc v2 mirror.",
-  },
-  {
-    name: "vidsrcwiki",
-    label: "VidSrc.wiki",
-    rank: 5,
-    // 301s to a trailing-slash URL — include the slash to skip the hop.
-    movieUrlTemplate: "https://vidsrc.wiki/embed/movie/{{tmdbId}}/",
-    seriesUrlTemplate: "https://vidsrc.wiki/embed/tv/{{tmdbId}}/{{season}}/{{episode}}/",
-    description: "VidSrc.wiki mirror.",
-  },
-  {
     name: "vidsrcbz",
     label: "VidSrc.bz",
-    rank: 6,
+    rank: 5,
+    tier: "secondary",
     movieUrlTemplate: "https://vidsrc.bz/embed/movie/{{tmdbId}}",
     seriesUrlTemplate: "https://vidsrc.bz/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "VidSrc.bz mirror.",
@@ -98,9 +97,45 @@ export const STREAM_PROVIDERS: StreamingProvider[] = [
   {
     name: "vidsrcpm",
     label: "Vidflix",
-    rank: 7,
+    rank: 6,
+    tier: "secondary",
     movieUrlTemplate: "https://vidsrc.pm/embed/movie/{{tmdbId}}",
     seriesUrlTemplate: "https://vidsrc.pm/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
     description: "Vidflix (vidsrc.pm) embed.",
   },
+  {
+    name: "vidsrcwiki",
+    label: "VidSrc.wiki",
+    rank: 7,
+    tier: "secondary",
+    // 301s to a trailing-slash URL — include the slash to skip the hop.
+    movieUrlTemplate: "https://vidsrc.wiki/embed/movie/{{tmdbId}}/",
+    seriesUrlTemplate: "https://vidsrc.wiki/embed/tv/{{tmdbId}}/{{season}}/{{episode}}/",
+    description: "VidSrc.wiki mirror.",
+  },
+  {
+    name: "vidsrcme",
+    label: "VidSrc.me",
+    rank: 8,
+    tier: "secondary",
+    movieUrlTemplate: "https://vidsrc.me/embed/movie/{{tmdbId}}",
+    seriesUrlTemplate: "https://vidsrc.me/embed/tv/{{tmdbId}}/{{season}}/{{episode}}",
+    description: "VidSrc.me mirror.",
+  },
 ];
+
+/**
+ * Ranked sources split by tier. Primary is the curated default row;
+ * secondary is the extended catalog shown behind "+N more" with live
+ * status. Both keep rank order (primary first, then secondary).
+ */
+export function getTieredProviders(): {
+  primary: StreamingProvider[];
+  secondary: StreamingProvider[];
+} {
+  const ranked = getRankedProviders();
+  return {
+    primary: ranked.filter((p) => (p.tier ?? "primary") === "primary"),
+    secondary: ranked.filter((p) => p.tier === "secondary"),
+  };
+}

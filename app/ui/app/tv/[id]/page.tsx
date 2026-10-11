@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { getTv, getTvCredits } from "@/lib/tmdb";
+import { getTv, getTvCredits, getTvTrailer, getSimilarTv } from "@/lib/tmdb";
 import MovieClient from "@/components/movie/MovieClient";
 import MovieActions from "@/components/movie/MovieActions";
+import SimilarMovies from "@/components/movie/SimilarMovies";
 import Synopsis from "@/components/movie/Synopsis";
 
 type Props = {
@@ -63,6 +64,8 @@ export default async function TvPage({
 
   const tv = await getTv(id);
   const credits = await getTvCredits(id);
+  const trailer = await getTvTrailer(id);
+  const similar = await getSimilarTv(id);
 
   const title =
     tv.name || "Untitled Series";
@@ -148,6 +151,9 @@ export default async function TvPage({
           title={title}
           season={position.season}
           episode={position.episode}
+          trailerUrl={
+            trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : undefined
+          }
         />
         </div>
 
@@ -175,9 +181,14 @@ export default async function TvPage({
                   )
               : undefined
           }
-          credits={credits}
-        />
-      </section>
-    </main>
-  );
-}
+           credits={credits}
+         />
+
+         <SimilarMovies
+           contentType="tv"
+           movies={similar.results ?? []}
+         />
+       </section>
+     </main>
+   );
+ }

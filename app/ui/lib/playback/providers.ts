@@ -14,6 +14,7 @@ export const PLAYBACK_PROVIDERS: PlaybackProvider[] = getRankedProviders().map(
     movieUrlTemplate: p.movieUrlTemplate,
     seriesUrlTemplate: p.seriesUrlTemplate,
     description: p.description,
+    tier: p.tier ?? "primary",
   }),
 );
 

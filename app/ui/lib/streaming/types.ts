@@ -24,12 +24,20 @@ export interface StreamingProvider {
   seriesUrlTemplate?: string;
   enabled?: boolean;
   description?: string;
+  /**
+   * "primary" — curated, verified, shown as the default chip row.
+   * "secondary" — extended catalog, hidden behind the "+N more" drawer and
+   * surfaced with a live status dot. Defaults to "primary" so existing
+   * entries keep today's behavior.
+   */
+  tier?: "primary" | "secondary";
 }
 
 export interface StreamSource {
   provider: string;
   label: string;
   url: string;
+  tier: "primary" | "secondary";
 }
 
 export interface StreamResult {

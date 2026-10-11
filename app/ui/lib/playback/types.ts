@@ -14,6 +14,8 @@ export type PlaybackProvider = {
 
 
   description?: string;
+  /** "primary" = curated default row; "secondary" = extended "+N more" drawer. */
+  tier?: "primary" | "secondary";
 };
 
 
