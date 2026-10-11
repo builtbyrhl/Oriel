@@ -151,9 +151,7 @@ export default async function TvPage({
           title={title}
           season={position.season}
           episode={position.episode}
-          trailerUrl={
-            trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : undefined
-          }
+          trailerKey={trailer?.key}
         />
         </div>
 
