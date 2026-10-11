@@ -13,6 +13,7 @@ import {
 import { getPlaybackProviders } from "@/lib/playback/providers";
 import { buildPlaybackUrl } from "@/lib/playback/url";
 import type { PlaybackContentType } from "@/lib/playback/types";
+import { saveLastWatchedPosition } from "@/lib/continueWatching";
 import { useSourceHealth } from "@/hooks/useSourceHealth";
 import BrandedIframe from "@/components/player/BrandedIframe";
 import SourcePicker from "@/components/player/SourcePicker";
@@ -153,6 +154,10 @@ export default function PlaybackPlayer({
     setSeason(next.season);
     setEpisode(next.episode);
     writePosition(next);
+    if (isSeries) {
+      // Remember where the viewer left off — powers the "Left at S#E#" badge.
+      saveLastWatchedPosition("tv", tmdbId, next);
+    }
     if (episodeChanged && scroll) {
       pendingScroll.current = true;
     }
@@ -257,7 +262,7 @@ export default function PlaybackPlayer({
   return (
     <section
       ref={sectionRef}
-      className="scroll-mt-24 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04]"
+      className="scroll-mt-24 rounded-3xl border border-white/10 bg-white/[0.04]"
     >
       <div className="border-b border-white/10 p-6">
         <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-white/45">
@@ -274,7 +279,10 @@ export default function PlaybackPlayer({
         </p>
       </div>
 
-      <div className="border-b border-white/10 px-6 py-4">
+      {/* Stuck under the navbar while the episode list scrolls, so
+          "try another source" is always one reach away (mostly matters
+          on small screens where the row would otherwise scroll away). */}
+      <div className="sticky top-[72px] z-30 border-b border-white/10 bg-[#0a0b10]/95 px-6 py-4 backdrop-blur-xl md:top-[80px]">
         <SourcePicker
           variant="page"
           items={primaryProviders.map((p) => ({ id: p.id, label: p.name }))}

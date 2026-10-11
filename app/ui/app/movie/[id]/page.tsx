@@ -12,8 +12,6 @@ import MovieActions from "@/components/movie/MovieActions";
       import WatchlistButton from "@/components/watchlist/WatchlistButton";
       import SimilarMovies from "@/components/movie/SimilarMovies";
 import Synopsis from "@/components/movie/Synopsis";
-import PageTransition from "@/components/layout/PageTransition";
-import { getNavbarVariant } from "@/lib/visual/navbar";
 
       type Props = {
         params: Promise<{
@@ -98,7 +96,7 @@ import { getNavbarVariant } from "@/lib/visual/navbar";
                                                                                                                                                                                                                                                                                                                                                                                                                                                               {movie.runtime} min
                                                                                                                                                                                                                                                                                                                                                                                                                                                                             </span>
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          {movie.genres?.slice(0, 2).map((genre: any) => (
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          {movie.genres?.slice(0, 2).map((genre: { id: number; name: string }) => (
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           <span
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             key={genre.id}
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-xl"
@@ -140,6 +138,9 @@ import { getNavbarVariant } from "@/lib/visual/navbar";
 <MovieActions
                     tmdbId={movie.id}
           title={movie.title}
+          trailerUrl={
+            trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : undefined
+          }
         />
 
 <MovieClient
