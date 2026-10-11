@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Clock3, ExternalLink, Play } from "lucide-react";
+import { Clock3, Play } from "lucide-react";
 import type { MediaType } from "@/lib/streaming/types";
 import {
   getLastWatchedPosition,
   type LastWatchedPosition,
 } from "@/lib/continueWatching";
 import PlayerOverlay from "@/components/player/PlayerOverlay";
+import TrailerModal from "@/components/movie/TrailerModal";
 
 interface MovieActionsProps {
   tmdbId: number;
@@ -16,8 +17,8 @@ interface MovieActionsProps {
   title?: string;
   season?: number;
   episode?: number;
-  /** YouTube trailer — opens in a new tab (in-site embeds are not possible). */
-  trailerUrl?: string;
+  /** YouTube trailer key (the `v=` part) — played in an in-site modal. */
+  trailerKey?: string;
 }
 
 export default function MovieActions({
@@ -26,7 +27,7 @@ export default function MovieActions({
   title,
   season = 1,
   episode = 1,
-  trailerUrl,
+  trailerKey,
 }: MovieActionsProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -34,6 +35,7 @@ export default function MovieActions({
   const [open, setOpen] = useState(false);
   const [openPos, setOpenPos] = useState({ season, episode });
   const [lastPos, setLastPos] = useState<LastWatchedPosition | null>(null);
+  const [trailerOpen, setTrailerOpen] = useState(false);
 
   // Read the position on a frame boundary: no hydration mismatch, and the
   // callback (not the effect body) performs the setState.
@@ -78,16 +80,13 @@ export default function MovieActions({
             Watch
           </button>
 
-          {trailerUrl && (
-            <a
-              href={trailerUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+          {trailerKey && (
+            <button
+              onClick={() => setTrailerOpen(true)}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white/85 transition hover:border-white/30 hover:bg-white/10"
             >
               Trailer
-              <ExternalLink size={14} className="text-white/50" />
-            </a>
+            </button>
           )}
         </div>
 
@@ -110,6 +109,15 @@ export default function MovieActions({
           season={openPos.season}
           episode={openPos.episode}
           onClose={() => setOpen(false)}
+        />
+      )}
+
+      {trailerKey && trailerOpen && (
+        <TrailerModal
+          open
+          videoKey={trailerKey}
+          title={title}
+          onClose={() => setTrailerOpen(false)}
         />
       )}
     </>

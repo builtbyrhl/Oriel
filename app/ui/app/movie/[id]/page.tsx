@@ -138,9 +138,7 @@ import Synopsis from "@/components/movie/Synopsis";
 <MovieActions
                     tmdbId={movie.id}
           title={movie.title}
-          trailerUrl={
-            trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : undefined
-          }
+          trailerKey={trailer?.key}
         />
 
 <MovieClient
